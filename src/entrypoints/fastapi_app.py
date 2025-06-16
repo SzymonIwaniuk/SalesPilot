@@ -1,14 +1,13 @@
+import datetime
 from http import HTTPStatus
-from typing import List
 
 from fastapi import FastAPI, HTTPException
 from sqlalchemy.orm import Session
 
-import handlers
-from adapters.pyd_model import Batch, OrderLine
+from adapters.pyd_model import OrderLine, Batch
 from domain import events, model
-from domain.services import allocate
 from repositories import repository
+from services import handlers
 
 
 def make_app(test_db: Session = None) -> FastAPI:
@@ -17,6 +16,7 @@ def make_app(test_db: Session = None) -> FastAPI:
     @app.get("/health_check", status_code=HTTPStatus.OK)
     async def health_check() -> dict[str, str]:
         return {"status": "Ok"}
+
 
     @app.post("/allocate", status_code=HTTPStatus.ACCEPTED)
     async def allocate_endpoint(
@@ -31,5 +31,24 @@ def make_app(test_db: Session = None) -> FastAPI:
         except (events.OutOfStock, handlers.InvalidSku) as e:
             raise HTTPException(HTTPStatus.BAD_REQUEST, detail=str(e))
         return {"status": "Ok", "batchref": batchref}
+
+
+    @app.post("/add_batch", status_code=HTTPStatus.CREATED)
+    async def add_batch(batch: Batch) -> dict[str, str]:
+        repo = repository.SqlaRepository(test_db)
+        try:
+            await handlers.add_batch(
+                batch=batch, repo=repo, session=test_db
+            )
+        except handlers.OutOfStockInBatch as e:
+            raise HTTPException(HTTPStatus.BAD_REQUEST, detail=e.args[0])
+        except Exception as e:
+            raise  HTTPException(
+                HTTPStatus.BAD_REQUEST,
+                detail=f"Unhandled exception during query execution: {e.args[0]}"
+
+            )
+        return {"status": "Ok"}
+
 
     return app

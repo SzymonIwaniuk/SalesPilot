@@ -14,7 +14,7 @@ from starlette.testclient import TestClient
 
 from config import get_postgres_uri
 from dbschema.orm import metadata, start_mappers
-from fastapi_app import make_app
+from entrypoints.fastapi_app import make_app
 
 
 @pytest.fixture

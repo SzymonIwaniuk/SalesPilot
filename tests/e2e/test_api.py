@@ -2,6 +2,7 @@ import uuid
 from http import HTTPStatus
 from typing import Callable
 
+import httpx
 import pytest
 from httpx import AsyncClient
 
@@ -22,6 +23,18 @@ def random_batchref(name="") -> str:
 
 def random_orderid(name="") -> str:
     return f"order-{name}-{random_suffix()}"
+
+
+
+async def post_to_add_batch(ref, sku, qty, eta):
+    url = config.get_base_url()
+    async with httpx.AsyncClient() as client:
+        response = await client.post(
+            f"{url}/add_batch",
+            json={"ref": ref, "sku": sku, "qty": qty, "eta": eta},
+        )
+
+    assert response.status_code == HTTPStatus.CREATED
 
 
 @pytest.mark.asyncio
@@ -107,3 +120,9 @@ async def test_400_message_for_invalid_sku(async_test_client: AsyncClient, add_s
     r = await async_test_client.post(f"{url}/allocate", json=data)
     assert r.status_code == HTTPStatus.BAD_REQUEST
     assert r.json()["detail"] == f"Invalid sku {unknown_sku}"
+
+
+@pytest.mark.asyncio
+async def test():
+    pass
+
