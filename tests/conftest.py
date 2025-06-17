@@ -47,6 +47,7 @@ def postgres_session(postgres_db) -> Session:
     clear_mappers()
 
 
+# CURRENTLY UNUSED, WORKING AS DOCUMENTATION
 @pytest.fixture
 def add_stock(postgres_session) -> Callable:
     batches_added = set()

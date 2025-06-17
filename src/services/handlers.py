@@ -47,12 +47,12 @@ async def allocate(orderid: str, sku: str, qty: int, repo: AbstractRepository, s
 
 
 async def add_batch(
-        reference: str,
-        sku: str,
-        purchased_quantity: int,
-        eta: Optional[date],
-        repo: AbstractRepository,
-        session: Session,
+    reference: str,
+    sku: str,
+    purchased_quantity: int,
+    eta: Optional[date],
+    repo: AbstractRepository,
+    session: Session,
 ) -> None:
     """
     Create from primitives and add batch to the repository and commit the change.

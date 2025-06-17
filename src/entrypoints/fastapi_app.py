@@ -1,12 +1,12 @@
-import datetime
 from http import HTTPStatus
 
-import uvicorn
+
 from fastapi import FastAPI, HTTPException
 from sqlalchemy.orm import Session
 
+
 from adapters.pyd_model import Batch, OrderLine
-from domain import events, model
+from domain import events
 from repositories import repository
 from services import handlers
 
@@ -38,9 +38,9 @@ def make_app(test_db: Session = None) -> FastAPI:
         repo = repository.SqlAlchemyRepository(test_db)
         try:
             await handlers.add_batch(
-                **batch.model_dump(
-                    include={"reference", "sku", "purchased_quantity", "eta"}
-                ), repo=repo, session=test_db
+                **batch.model_dump(include={"reference", "sku", "purchased_quantity", "eta"}),
+                repo=repo,
+                session=test_db,
             )
         except handlers.OutOfStockInBatch as e:
             raise HTTPException(HTTPStatus.BAD_REQUEST, detail=e.args[0])

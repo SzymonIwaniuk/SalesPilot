@@ -2,7 +2,6 @@ import uuid
 from http import HTTPStatus
 from typing import Callable
 
-import httpx
 import pytest
 from httpx import AsyncClient
 
@@ -25,13 +24,13 @@ def random_orderid(name="") -> str:
     return f"order-{name}-{random_suffix()}"
 
 
-async def post_to_add_batch(ref, sku, qty, eta):
-    url = config.get_base_url()
-    async with httpx.AsyncClient() as client:
-        response = await client.post(
-            f"{url}/add_batch",
-            json={"ref": ref, "sku": sku, "qty": qty, "eta": eta},
-        )
+async def post_to_add_batch(async_test_client, ref, sku, qty, eta):
+    url = config.get_api_url()
+
+    response = await async_test_client.post(
+        f"{url}/add_batch",
+        json={"reference": ref, "sku": sku, "purchased_quantity": qty, "eta": eta},
+    )
 
     assert response.status_code == HTTPStatus.CREATED
 
@@ -52,13 +51,9 @@ async def test_api_returns_allocation(async_test_client: AsyncClient, add_stock:
     laterbatch = random_batchref(2)
     otherbatch = random_batchref(3)
 
-    add_stock(
-        [
-            (laterbatch, sku, 100, "2025-05-27"),
-            (earlybatch, sku, 100, "2025-05-26"),
-            (otherbatch, othersku, 100, None),
-        ]
-    )
+    await post_to_add_batch(async_test_client, laterbatch, sku, 100, "2025-06-19")
+    await post_to_add_batch(async_test_client, earlybatch, sku, 100, "2025-06-18")
+    await post_to_add_batch(async_test_client, otherbatch, othersku, 100, None)
 
     data = {"orderid": random_orderid(), "sku": sku, "qty": 3}
     url = config.get_api_url()
@@ -73,12 +68,10 @@ async def test_allocations_are_persisted(async_test_client: AsyncClient, add_sto
     sku = random_sku()
     batch1, batch2 = random_batchref(1), random_batchref(2)
     order1, order2 = random_orderid(1), random_orderid(2)
-    add_stock(
-        [
-            (batch1, sku, 10, "2025-05-29"),
-            (batch2, sku, 100, "2025-05-30"),
-        ],
-    )
+
+    await post_to_add_batch(async_test_client, batch1, sku, 10, "2025-05-29")
+    await post_to_add_batch(async_test_client, batch2, sku, 100, "2025-05-30")
+
     line1 = {"orderid": order1, "sku": sku, "qty": 10}
     line2 = {"orderid": order2, "sku": sku, "qty": 10}
     url = config.get_api_url()
@@ -98,11 +91,9 @@ async def test_allocations_are_persisted(async_test_client: AsyncClient, add_sto
 @pytest.mark.usefixtures("restart_api")
 async def test_400_message_for_out_of_stock(async_test_client: AsyncClient, add_stock: Callable) -> None:
     sku, small_batch, large_order = random_sku(), random_batchref(), random_orderid()
-    add_stock(
-        [
-            (small_batch, sku, 10, "2025-05-29"),
-        ]
-    )
+
+    await post_to_add_batch(async_test_client, small_batch, sku, 10, "2025-06-19")
+
     data = {"orderid": large_order, "sku": sku, "qty": 20}
     url = config.get_api_url()
     r = await async_test_client.post(f"{url}/allocate", json=data)
