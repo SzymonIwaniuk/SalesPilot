@@ -25,7 +25,6 @@ def random_orderid(name="") -> str:
     return f"order-{name}-{random_suffix()}"
 
 
-
 async def post_to_add_batch(ref, sku, qty, eta):
     url = config.get_base_url()
     async with httpx.AsyncClient() as client:
@@ -125,4 +124,3 @@ async def test_400_message_for_invalid_sku(async_test_client: AsyncClient, add_s
 @pytest.mark.asyncio
 async def test():
     pass
-

@@ -1,11 +1,10 @@
 from __future__ import annotations
 
-from datetime import date
-from typing import List, Optional
+from typing import List
 
 from sqlalchemy.orm import Session
 
-from adapters.pyd_model import Batch, OrderLine
+from adapters.pyd_model import Batch
 from domain import services
 from domain import model
 from repositories.repository import AbstractRepository
@@ -19,7 +18,10 @@ def is_valid_sku(sku: str, batches: List[Batch]) -> bool:
     return sku in {b.sku for b in batches}
 
 
-async def allocate(line: OrderLine, repo: AbstractRepository, session: Session) -> str:
+async def allocate(
+        orderid: str, sku: str, qty: int,
+        repo: AbstractRepository, session: Session
+) -> str:
     """
     Allocate an order line to a batch.
 
@@ -34,7 +36,7 @@ async def allocate(line: OrderLine, repo: AbstractRepository, session: Session) 
     Returns:
         str: The reference id of the batch to which the order line was allocated.
     """
-
+    line = model.OrderLine(orderid, sku, qty)
     batches = repo.list()
 
     if not is_valid_sku(line.sku, batches):

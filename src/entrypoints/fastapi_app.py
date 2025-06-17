@@ -1,8 +1,10 @@
 import datetime
 from http import HTTPStatus
 
+
 from fastapi import FastAPI, HTTPException
 from sqlalchemy.orm import Session
+
 
 from adapters.pyd_model import OrderLine, Batch
 from domain import events, model
@@ -17,21 +19,20 @@ def make_app(test_db: Session = None) -> FastAPI:
     async def health_check() -> dict[str, str]:
         return {"status": "Ok"}
 
-
     @app.post("/allocate", status_code=HTTPStatus.ACCEPTED)
     async def allocate_endpoint(
         lines: OrderLine,
     ) -> dict[str, str]:
 
-        line = model.OrderLine(**lines.model_dump())  # pydantic V3.0
         repo = repository.SqlAlchemyRepository(test_db)
 
         try:
-            batchref = await handlers.allocate(line, repo, test_db)
+            batchref = await handlers.allocate(
+                **lines.model_dump(include={"sku", "qty", "orderid"}), repo=repo, session=test_db
+            )
         except (events.OutOfStock, handlers.InvalidSku) as e:
             raise HTTPException(HTTPStatus.BAD_REQUEST, detail=str(e))
         return {"status": "Ok", "batchref": batchref}
-
 
     @app.post("/add_batch", status_code=HTTPStatus.CREATED)
     async def add_batch(batch: Batch) -> dict[str, str]:
@@ -43,12 +44,10 @@ def make_app(test_db: Session = None) -> FastAPI:
         except handlers.OutOfStockInBatch as e:
             raise HTTPException(HTTPStatus.BAD_REQUEST, detail=e.args[0])
         except Exception as e:
-            raise  HTTPException(
+            raise HTTPException(
                 HTTPStatus.BAD_REQUEST,
                 detail=f"Unhandled exception during query execution: {e.args[0]}"
-
             )
         return {"status": "Ok"}
-
 
     return app
