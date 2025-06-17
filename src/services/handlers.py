@@ -1,12 +1,12 @@
 from __future__ import annotations
 
-from typing import List
+from datetime import date
+from typing import List, Optional
 
 from sqlalchemy.orm import Session
 
 from adapters.pyd_model import Batch
-from domain import services
-from domain import model
+from domain import model, services
 from repositories.repository import AbstractRepository
 
 
@@ -18,15 +18,14 @@ def is_valid_sku(sku: str, batches: List[Batch]) -> bool:
     return sku in {b.sku for b in batches}
 
 
-async def allocate(
-        orderid: str, sku: str, qty: int,
-        repo: AbstractRepository, session: Session
-) -> str:
+async def allocate(orderid: str, sku: str, qty: int, repo: AbstractRepository, session: Session) -> str:
     """
-    Allocate an order line to a batch.
+    Allocate a primitive order line to a batch.
 
     Args:
-        line: The order line containing order ID, SKU, and quantity.
+        orderid: id
+        sku: stock-keeping-unit
+        qty: quantity
         repo: The repository to fetch available batches.
         session: The database session for committing changes.
 
@@ -47,12 +46,22 @@ async def allocate(
     return batchref
 
 
-async def add_batch(batch: Batch, repo: AbstractRepository, session: Session) -> None:
+async def add_batch(
+        reference: str,
+        sku: str,
+        purchased_quantity: int,
+        eta: Optional[date],
+        repo: AbstractRepository,
+        session: Session,
+) -> None:
     """
-    Add a new batch to the repository and commit the change.
+    Create from primitives and add batch to the repository and commit the change.
 
     Args:
-        batch: The batch to be added, containing reference, sku, quantity, and eta.
+        reference:
+        sku:
+        purchased_quantity:
+        eta:
         repo: The repository where the batch will be stored.
         session: The database session for committing the change.
 
@@ -61,11 +70,12 @@ async def add_batch(batch: Batch, repo: AbstractRepository, session: Session) ->
     """
 
     # TODO Refactor it cuz SQLAlchemy repo take only domain objects
-    repo.add(model.Batch(
-        ref=batch.reference,
-        sku=batch.sku,
-        qty=batch.purchased_quantity,
-        eta=batch.eta,
+    repo.add(
+        model.Batch(
+            ref=reference,
+            sku=sku,
+            qty=purchased_quantity,
+            eta=eta,
         )
     )
     session.commit()

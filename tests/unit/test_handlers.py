@@ -23,9 +23,7 @@ async def test_commits():
     repo = repository.FakeRepository([batch])
     session = FakeSession()
 
-    await handlers.allocate(
-        orderid="o1", sku="CASEPHONE", qty=10, repo=repo, session=session
-    )
+    await handlers.allocate(orderid="o1", sku="CASEPHONE", qty=10, repo=repo, session=session)
 
     assert session.committed is True
 
@@ -35,9 +33,7 @@ async def test_returns_allocations() -> None:
     batch = pyd_model.Batch(reference="b1", sku="KEYBOARD", purchased_quantity=100, eta=None)
     repo = repository.FakeRepository([batch])
 
-    result = await handlers.allocate(
-        orderid="o1", sku="KEYBOARD", qty=2, repo=repo, session=FakeSession()
-    )
+    result = await handlers.allocate(orderid="o1", sku="KEYBOARD", qty=2, repo=repo, session=FakeSession())
 
     assert result == "b1"
 
@@ -48,9 +44,7 @@ async def test_error_for_invalid_sku() -> None:
     repo = repository.FakeRepository([batch])
 
     with pytest.raises(handlers.InvalidSku, match="Invalid sku NONEXISTENTSKU"):
-        await handlers.allocate(
-            orderid="o1", sku="NONEXISTENTSKU", qty=10, repo=repo, session=FakeSession()
-        )
+        await handlers.allocate(orderid="o1", sku="NONEXISTENTSKU", qty=10, repo=repo, session=FakeSession())
 
 
 # Rewrite domain test against service layer to check that orders are still being allocated
@@ -80,7 +74,6 @@ async def test_add_batch() -> None:
         "eta": None,
     }
 
-    batch = pyd_model.Batch(**batch_data)
-    await handlers.add_batch(batch, repo, session)
+    await handlers.add_batch(**batch_data, repo=repo, session=session)
     assert repo.get("b1") is not None
     assert session.committed
