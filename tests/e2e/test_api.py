@@ -1,9 +1,10 @@
 import uuid
 from http import HTTPStatus
-from typing import Callable
+
 
 import pytest
 from httpx import AsyncClient
+
 
 import config
 
@@ -24,7 +25,7 @@ def random_orderid(name="") -> str:
     return f"order-{name}-{random_suffix()}"
 
 
-async def post_to_add_batch(async_test_client, ref, sku, qty, eta):
+async def post_to_add_batch(async_test_client, ref, sku, qty, eta) -> None:
     url = config.get_api_url()
 
     response = await async_test_client.post(
@@ -44,7 +45,7 @@ async def test_health_check(async_test_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("restart_api")
-async def test_api_returns_allocation(async_test_client: AsyncClient, add_stock: Callable) -> None:
+async def test_api_returns_allocation(async_test_client: AsyncClient) -> None:
     sku, othersku = random_sku(), random_sku("other")
 
     earlybatch = random_batchref(1)
@@ -64,7 +65,7 @@ async def test_api_returns_allocation(async_test_client: AsyncClient, add_stock:
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("restart_api")
-async def test_allocations_are_persisted(async_test_client: AsyncClient, add_stock: Callable) -> None:
+async def test_allocations_are_persisted(async_test_client: AsyncClient) -> None:
     sku = random_sku()
     batch1, batch2 = random_batchref(1), random_batchref(2)
     order1, order2 = random_orderid(1), random_orderid(2)
@@ -89,7 +90,7 @@ async def test_allocations_are_persisted(async_test_client: AsyncClient, add_sto
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("restart_api")
-async def test_400_message_for_out_of_stock(async_test_client: AsyncClient, add_stock: Callable) -> None:
+async def test_400_message_for_out_of_stock(async_test_client: AsyncClient) -> None:
     sku, small_batch, large_order = random_sku(), random_batchref(), random_orderid()
 
     await post_to_add_batch(async_test_client, small_batch, sku, 10, "2025-06-19")
@@ -103,15 +104,10 @@ async def test_400_message_for_out_of_stock(async_test_client: AsyncClient, add_
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("restart_api")
-async def test_400_message_for_invalid_sku(async_test_client: AsyncClient, add_stock: Callable) -> None:
+async def test_400_message_for_invalid_sku(async_test_client: AsyncClient) -> None:
     unknown_sku, orderid = random_sku(), random_orderid()
     data = {"orderid": orderid, "sku": unknown_sku, "qty": 20}
     url = config.get_api_url()
     r = await async_test_client.post(f"{url}/allocate", json=data)
     assert r.status_code == HTTPStatus.BAD_REQUEST
     assert r.json()["detail"] == f"Invalid sku {unknown_sku}"
-
-
-@pytest.mark.asyncio
-async def test():
-    pass

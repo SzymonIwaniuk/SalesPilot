@@ -11,21 +11,28 @@ from repositories.repository import AbstractRepository
 
 
 class InvalidSku(Exception):
+    """Raised when an invalid sku is encountered in /allocate route"""
+    pass
+
+
+class OutOfStockInBatch(Exception):
+    """Raised when encountered error in /add_batch route"""
     pass
 
 
 def is_valid_sku(sku: str, batches: List[Batch]) -> bool:
+    """Check whether a sku is valid"""
     return sku in {b.sku for b in batches}
 
 
 async def allocate(orderid: str, sku: str, qty: int, repo: AbstractRepository, session: Session) -> str:
     """
-    Allocate a primitive order line to a batch.
+    Create from primitives order line and allocate it to a batch.
 
     Args:
-        orderid: id
-        sku: stock-keeping-unit
-        qty: quantity
+        orderid: Unique order id
+        sku: Stock-keeping-unit
+        qty: Quantity
         repo: The repository to fetch available batches.
         session: The database session for committing changes.
 
@@ -35,6 +42,7 @@ async def allocate(orderid: str, sku: str, qty: int, repo: AbstractRepository, s
     Returns:
         str: The reference id of the batch to which the order line was allocated.
     """
+
     line = model.OrderLine(orderid, sku, qty)
     batches = repo.list()
 
@@ -55,13 +63,14 @@ async def add_batch(
     session: Session,
 ) -> None:
     """
-    Create from primitives and add batch to the repository and commit the change.
+    Creates a new `Batch` instance from primitive values,
+    adds it to the repository and commits the changes.
 
     Args:
-        reference:
-        sku:
-        purchased_quantity:
-        eta:
+        reference: Unique reference code for the batch.
+        sku: Stock Keeping Unit identifying the product.
+        purchased_quantity: Total quantity purchased in this batch.
+        eta: Estimated time of arrival for the batch. Can be `None`.
         repo: The repository where the batch will be stored.
         session: The database session for committing the change.
 
@@ -69,7 +78,6 @@ async def add_batch(
         None
     """
 
-    # TODO Refactor it cuz SQLAlchemy repo take only domain objects
     repo.add(
         model.Batch(
             ref=reference,

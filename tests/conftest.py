@@ -1,7 +1,6 @@
-# pylint: disable=redefined-outer-name
 import time
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Any, AsyncGenerator, Generator, Iterable
 
 import pytest
 import pytest_asyncio
@@ -25,7 +24,7 @@ def in_memory_db() -> Engine:
 
 
 @pytest.fixture
-def session(in_memory_db: Engine) -> Session:
+def session(in_memory_db: Engine) -> Generator[Session, Any, None]:
     start_mappers()
     db_session = sessionmaker(bind=in_memory_db)
     yield db_session()
@@ -40,7 +39,7 @@ def postgres_db() -> Engine:
 
 
 @pytest.fixture
-def postgres_session(postgres_db) -> Session:
+def postgres_session(postgres_db) -> Generator[Session, Any, None]:
     start_mappers()
     pg_session = sessionmaker(bind=postgres_db)
     yield pg_session()
@@ -49,7 +48,7 @@ def postgres_session(postgres_db) -> Session:
 
 # CURRENTLY UNUSED, WORKING AS DOCUMENTATION
 @pytest.fixture
-def add_stock(postgres_session) -> Callable:
+def add_stock(postgres_session) -> Generator[Callable[[Iterable], None], Any, None]:
     batches_added = set()
     skus_added = set()
 
@@ -103,15 +102,15 @@ def add_stock(postgres_session) -> Callable:
 
 
 @pytest_asyncio.fixture
-async def async_test_client(postgres_session):
-    app = make_app(test_db=postgres_session)
+async def async_test_client(postgres_session) -> AsyncGenerator[AsyncClient, Any]:
+    app = make_app(db_session=postgres_session)
     async with AsyncClient(transport=ASGITransport(app), base_url="http://test") as client:
         yield client
 
 
 @pytest.fixture
-def test_client(postgres_session):
-    app = make_app(test_db=postgres_session)
+def test_client(postgres_session) -> TestClient:
+    app = make_app(db_session=postgres_session)
     return TestClient(app)
 
 
