@@ -75,6 +75,7 @@ async def test_allocations_are_persisted(async_test_client: AsyncClient) -> None
 
     line1 = {"orderid": order1, "sku": sku, "qty": 10}
     line2 = {"orderid": order2, "sku": sku, "qty": 10}
+
     url = config.get_api_url()
 
     # first order uses up all stock in batch 1

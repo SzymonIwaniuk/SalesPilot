@@ -8,12 +8,14 @@ from sqlalchemy.orm.session import Session
 from dbschema.orm import metadata, start_mappers
 
 
-# TODO: Clean up decouple config for settings and bootstrap
+# TODO: Clean up, decouple config to settings and bootstrap
 def get_postgres_uri() -> str:
     host = os.environ.get("DB_HOST", "localhost")
     port = 5432 if host == "localhost" else 54321
     password = os.environ.get("DB_PASSWORD", "abc123")
     user, db_name = "allocation", "allocation"
+    print(f"{host, port}")
+    print(f"postgresql://{user}:{password}@{host}:{port}/{db_name}")
     return f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
 
 

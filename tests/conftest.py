@@ -1,3 +1,4 @@
+import os
 import time
 from pathlib import Path
 from typing import Callable, Any, AsyncGenerator, Generator, Iterable
@@ -44,6 +45,21 @@ def postgres_session(postgres_db) -> Generator[Session, Any, None]:
     pg_session = sessionmaker(bind=postgres_db)
     yield pg_session()
     clear_mappers()
+
+
+def pytest_addoption(parser) -> None:
+    default_url = os.getenv("TEST_SERVER", None) or "http://test"
+    parser.addoption(
+        "--base-url",
+        action="store",
+        default=default_url,
+        help="Base URL of the API server"
+    )
+
+
+@pytest.fixture
+def base_url(request) -> Any:
+    return request.config.getoption("--base-url")
 
 
 # CURRENTLY UNUSED, WORKING AS DOCUMENTATION
@@ -102,10 +118,15 @@ def add_stock(postgres_session) -> Generator[Callable[[Iterable], None], Any, No
 
 
 @pytest_asyncio.fixture
-async def async_test_client(postgres_session) -> AsyncGenerator[AsyncClient, Any]:
-    app = make_app(db_session=postgres_session)
-    async with AsyncClient(transport=ASGITransport(app), base_url="http://test") as client:
-        yield client
+async def async_test_client(postgres_session, base_url) -> AsyncGenerator[AsyncClient, Any]:
+    if base_url == "http://test":
+        app = make_app(db_session=postgres_session)
+        async with AsyncClient(transport=ASGITransport(app), base_url=base_url) as client:
+            yield client
+
+    else:
+        async with AsyncClient(base_url=base_url) as client:
+            yield client
 
 
 @pytest.fixture

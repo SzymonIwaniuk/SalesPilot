@@ -1,0 +1,26 @@
+version: "3.9"
+services:
+  postgres:
+    image: postgres:15-alpine
+    ports:
+      - "54321:54321"
+    environment:
+      POSTGRES_USER: allocation
+      POSTGRES_PASSWORD: abc123
+      POSTGRES_DB: allocation
+    command: -p 54321
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  api:
+    build: .
+    ports:
+      - "80:80"
+    depends_on:
+      - postgres
+    environment:
+      DB_HOST: postgres
+      DB_PASSWORD: abc123
+
+volumes:
+  postgres_data:
