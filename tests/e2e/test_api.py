@@ -1,10 +1,8 @@
 import uuid
 from http import HTTPStatus
 
-
 import pytest
 from httpx import AsyncClient
-
 
 import config
 

@@ -12,11 +12,13 @@ from repositories.repository import AbstractRepository
 
 class InvalidSku(Exception):
     """Raised when an invalid sku is encountered in /allocate route"""
+
     pass
 
 
 class OutOfStockInBatch(Exception):
     """Raised when encountered error in /add_batch route"""
+
     pass
 
 

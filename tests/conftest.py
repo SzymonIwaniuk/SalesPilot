@@ -1,7 +1,7 @@
 import os
 import time
 from pathlib import Path
-from typing import Callable, Any, AsyncGenerator, Generator, Iterable
+from typing import Any, AsyncGenerator, Callable, Generator, Iterable
 
 import pytest
 import pytest_asyncio
@@ -49,12 +49,7 @@ def postgres_session(postgres_db) -> Generator[Session, Any, None]:
 
 def pytest_addoption(parser) -> None:
     default_url = os.getenv("TEST_SERVER", None) or "http://test"
-    parser.addoption(
-        "--base-url",
-        action="store",
-        default=default_url,
-        help="Base URL of the API server"
-    )
+    parser.addoption("--base-url", action="store", default=default_url, help="Base URL of the API server")
 
 
 @pytest.fixture
