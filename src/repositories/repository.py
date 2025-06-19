@@ -1,7 +1,9 @@
 from abc import ABC, abstractmethod
-from typing import List
+from typing import List, Any, Sequence
 
-from sqlalchemy.orm import Session
+from sqlalchemy import Row, RowMapping
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
 from domain.model import Batch
 
@@ -34,18 +36,23 @@ class AbstractRepository(ABC):
 
 
 class SqlAlchemyRepository(AbstractRepository):
-    def __init__(self, session: Session) -> None:
+    def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    def add(self, batch: Batch) -> None:
+    async def add(self, batch: Batch) -> None:
         self.session.add(batch)
+        await self.session.flush()
 
-    def get(self, reference: str) -> Batch:
-        return self.session.query(Batch).filter_by(reference=reference).one()
+    async def get(self, reference: str) -> Batch:
+        result = await self.session.execute(
+            select(Batch).filter_by(reference=reference)
+        )
+        return result.scalars().one()
 
-    def list(self) -> List[Batch]:
+    async def list(self) -> Sequence[Row[Any] | RowMapping | Any]:
         """List all batches in the repository."""
-        return self.session.query(Batch).all()
+        result = await self.session.execute(select(Batch))
+        return result.scalars().all()
 
 
 class FakeRepository(AbstractRepository):
