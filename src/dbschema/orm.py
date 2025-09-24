@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Date, ForeignKey, Integer, MetaData, String, Table
+from sqlalchemy import (Column, Date, ForeignKey, Integer, MetaData, String,
+                        Table)
 from sqlalchemy.orm import registry, relationship
 
 from domain.model import Batch, OrderLine

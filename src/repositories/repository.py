@@ -3,6 +3,7 @@ from typing import List
 
 from sqlalchemy.orm import Session
 
+from adapters import pyd_model
 from domain.model import Batch
 
 
@@ -60,3 +61,7 @@ class FakeRepository(AbstractRepository):
 
     def list(self) -> List[Batch]:
         return list(self._batches)
+
+    @staticmethod
+    def for_batch(ref, sku, qty, eta=None):
+        return FakeRepository([pyd_model.Batch(reference=ref, sku=sku, purchased_quantity=qty, eta=eta)])

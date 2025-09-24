@@ -49,7 +49,7 @@ def postgres_session(postgres_db) -> Generator[Session, Any, None]:
 
 def pytest_addoption(parser) -> None:
     default_url = os.getenv("TEST_SERVER", None) or "http://test"
-    parser.addoption("--base-url", action="store", default=default_url, help="Base URL of the API server")
+    parser.addoption("--base-url", action="store", default=default_url, help="base url of the api server")
 
 
 @pytest.fixture

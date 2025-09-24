@@ -1,5 +1,5 @@
 poetry init
 -> Add all dependencies
 -> Setup black, ruff, etc.
--> Setup fastApi with all of it's dependengit cies (from documentation page)
+-> Setup fastApi with all of it's dependencies (from documentation page)
 -> Setup database (for example postgresql)

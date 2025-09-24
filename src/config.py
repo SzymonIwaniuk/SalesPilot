@@ -14,8 +14,6 @@ def get_postgres_uri() -> str:
     port = 5432 if host == "localhost" else 54321
     password = os.environ.get("DB_PASSWORD", "abc123")
     user, db_name = "allocation", "allocation"
-    print(f"{host, port}")
-    print(f"postgresql://{user}:{password}@{host}:{port}/{db_name}")
     return f"postgresql://{user}:{password}@{host}:{port}/{db_name}"
 
 
