@@ -2,9 +2,9 @@ import abc
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
+
 import config
 from repositories import repository
-
 
 DEFAULT_SESSION_FACTORY = sessionmaker(
     bind=create_engine(

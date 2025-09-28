@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Date, ForeignKey, Integer, MetaData, String, Table
+from sqlalchemy import (Column, Date, ForeignKey, Integer, MetaData, String,
+                        Table)
 from sqlalchemy.orm import registry, relationship
 
 from domain.model import Batch, OrderLine
@@ -36,8 +37,6 @@ allocations = Table(
 
 
 def start_mappers():
-    if mapper_registry.mappers:
-        return
 
     lines_mapper = mapper_registry.map_imperatively(OrderLine, order_lines)
 

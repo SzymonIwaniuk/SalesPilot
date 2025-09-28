@@ -120,17 +120,20 @@ def add_stock(postgres_session) -> Generator[Callable[[Iterable], None], Any, No
 @pytest_asyncio.fixture
 async def async_test_client(base_url) -> AsyncGenerator[AsyncClient, Any]:
     app = make_app()
+
     async with AsyncClient(transport=ASGITransport(app), base_url=base_url) as client:
         yield client
+    clear_mappers()
 
 
 @pytest.fixture
 def test_client(postgres_session) -> TestClient:
     app = make_app()
-    return TestClient(app)
+    yield TestClient(app)
+    clear_mappers()
 
 
 @pytest.fixture
 def restart_api() -> None:
-    (Path(__file__).parent / "fastapi_app.py").touch()
-    time.sleep(0.3)
+    (Path(__file__).parent / "../src/entrypoints/fastapi_app.py").touch()
+    time.sleep(0.5)

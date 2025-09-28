@@ -1,14 +1,11 @@
 from http import HTTPStatus
 
 from fastapi import FastAPI, HTTPException
-from sqlalchemy.orm import Session
 
 from adapters.pyd_model import Batch, OrderLine
-from domain import events
-from repositories import repository
-from services import handlers, unit_of_work
 from dbschema import orm
-
+from domain import events
+from services import handlers, unit_of_work
 
 
 def make_app() -> FastAPI:

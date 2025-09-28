@@ -4,7 +4,6 @@ from datetime import date
 from typing import List, Optional
 
 from domain import model, services
-from repositories.repository import AbstractRepository
 from services.unit_of_work import AbstractUnitOfWork
 
 
@@ -20,7 +19,7 @@ class OutOfStockInBatch(Exception):
     pass
 
 
-def is_valid_sku(sku: str, batches: List[Batch]) -> bool:
+def is_valid_sku(sku: str, batches: List[model.Batch]) -> bool:
     """Check whether a sku is valid"""
     return sku in {b.sku for b in batches}
 
@@ -82,4 +81,3 @@ async def add_batch(
     with uow:
         uow.batches.add(batch)
         uow.commit()
-

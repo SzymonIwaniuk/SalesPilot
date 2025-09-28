@@ -2,8 +2,6 @@ from datetime import date, timedelta
 
 import pytest
 
-from repositories import repository
-from repositories.repository import FakeRepository
 from services import handlers
 from services.unit_of_work import FakeUnitOfWork
 

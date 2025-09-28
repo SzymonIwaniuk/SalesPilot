@@ -1,6 +1,5 @@
 import uvicorn
 
-from config import get_postgres_session
 from entrypoints.fastapi_app import make_app
 
 app = make_app()
