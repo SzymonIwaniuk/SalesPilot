@@ -30,12 +30,15 @@ allocations = Table(
     "allocations",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("orderline_id", ForeignKey("order_lines.id", ondelete="CASCADE")),
+    Column("OrderLine_id", ForeignKey("order_lines.id", ondelete="CASCADE")),
     Column("batch_id", ForeignKey("batches.id", ondelete="CASCADE")),
 )
 
 
 def start_mappers():
+    if mapper_registry.mappers:
+        return
+
     lines_mapper = mapper_registry.map_imperatively(OrderLine, order_lines)
 
     mapper_registry.map_imperatively(

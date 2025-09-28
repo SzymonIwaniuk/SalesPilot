@@ -2,7 +2,6 @@ import abc
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-
 import config
 from repositories import repository
 

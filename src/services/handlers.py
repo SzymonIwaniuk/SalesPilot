@@ -78,16 +78,8 @@ async def add_batch(
     Returns:
         None
     """
-
+    batch = model.Batch(ref=reference, sku=sku, qty=purchased_quantity, eta=eta)
     with uow:
-        uow.batches.add(
-            model.Batch(
-                ref=reference,
-                sku=sku,
-                qty=purchased_quantity,
-                eta=eta,
-            )
-        )
+        uow.batches.add(batch)
         uow.commit()
-
 

@@ -7,10 +7,13 @@ from adapters.pyd_model import Batch, OrderLine
 from domain import events
 from repositories import repository
 from services import handlers, unit_of_work
+from dbschema import orm
+
 
 
 def make_app() -> FastAPI:
     app = FastAPI()
+    orm.start_mappers()
 
     @app.get("/health_check", status_code=HTTPStatus.OK)
     async def health_check() -> dict[str, str]:

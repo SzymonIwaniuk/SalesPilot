@@ -23,14 +23,14 @@ def get_api_url() -> str:
     return f"http://{host}:{port}"
 
 
-def postgres_db() -> Engine:
-    engine = create_engine(get_postgres_uri())
-    metadata.create_all(engine)
-    return engine
-
-
-def get_postgres_session() -> Session:
-    engine = postgres_db()
-    start_mappers()
-    pg_session = sessionmaker(bind=engine)
-    return pg_session()
+# def postgres_db() -> Engine:
+#     engine = create_engine(get_postgres_uri())
+#     metadata.create_all(engine)
+#     return engine
+#
+#
+# def get_postgres_session() -> Session:
+#     engine = postgres_db()
+#     start_mappers()
+#     pg_session = sessionmaker(bind=engine)
+#     return pg_session()
