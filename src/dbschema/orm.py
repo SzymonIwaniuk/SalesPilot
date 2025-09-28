@@ -1,5 +1,4 @@
-from sqlalchemy import (Column, Date, ForeignKey, Integer, MetaData, String,
-                        Table)
+from sqlalchemy import Column, Date, ForeignKey, Integer, MetaData, String, Table
 from sqlalchemy.orm import registry, relationship
 
 from domain.model import Batch, OrderLine
@@ -31,8 +30,8 @@ allocations = Table(
     "allocations",
     metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
-    Column("OrderLine_id", ForeignKey("order_lines.id", ondelete="CASCADE")),
-    Column("batch_id", ForeignKey("batches.id")),
+    Column("orderline_id", ForeignKey("order_lines.id", ondelete="CASCADE")),
+    Column("batch_id", ForeignKey("batches.id", ondelete="CASCADE")),
 )
 
 

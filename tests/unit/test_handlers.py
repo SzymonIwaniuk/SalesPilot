@@ -5,49 +5,49 @@ import pytest
 from repositories import repository
 from repositories.repository import FakeRepository
 from services import handlers
+from services.unit_of_work import FakeUnitOfWork
 
 TOMMOROW = date.today() + timedelta(days=1)
 
 
-class FakeSession:
-    committed = False
-
-    def commit(self):
-        self.committed = True
+# class FakeSession:
+#     committed = False
+#
+#     def commit(self):
+#         self.committed = True
 
 
 @pytest.mark.asyncio
 async def test_commits() -> None:
-    repo = repository.FakeRepository.for_batch("b1", "CASEPHONE", 100, None)
-    session = FakeSession()
+    uow = FakeUnitOfWork()
 
-    await handlers.allocate(orderid="o1", sku="CASEPHONE", qty=10, repo=repo, session=session)
+    await handlers.add_batch(reference="b1", sku="CASEPHONE", purchased_quantity=100, eta=None, uow=uow)
+    await handlers.allocate(orderid="o1", sku="CASEPHONE", qty=10, uow=uow)
 
-    assert session.committed is True
+    assert uow.committed is True
 
 
 @pytest.mark.asyncio
 async def test_returns_allocation() -> None:
-    repo = repository.FakeRepository.for_batch("b1", "KEYBOARD", 100, None)
-    session = FakeSession()
-
-    result = await handlers.allocate(orderid="o1", sku="KEYBOARD", qty=2, repo=repo, session=session)
+    uow = FakeUnitOfWork()
+    await handlers.add_batch(reference="b1", sku="KEYBOARD", purchased_quantity=100, eta=None, uow=uow)
+    result = await handlers.allocate(orderid="o1", sku="KEYBOARD", qty=2, uow=uow)
 
     assert result == "b1"
 
 
 @pytest.mark.asyncio
 async def test_error_for_invalid_sku() -> None:
-    repo = repository.FakeRepository.for_batch("b1", "AREALSKU", 100, None)
-    session = FakeSession()
+    uow = FakeUnitOfWork()
+    await handlers.add_batch(reference="b1", sku="AREALSKU", purchased_quantity=100, eta=None, uow=uow)
 
     with pytest.raises(handlers.InvalidSku, match="Invalid sku NONEXISTENTSKU"):
-        await handlers.allocate(orderid="o1", sku="NONEXISTENTSKU", qty=10, repo=repo, session=session)
+        await handlers.allocate(orderid="o1", sku="NONEXISTENTSKU", qty=10, uow=uow)
 
 
 @pytest.mark.asyncio
 async def test_add_batch() -> None:
-    repo, session = FakeRepository([]), FakeSession()
+    uow = FakeUnitOfWork()
 
     # Also good pattern to create batch pydantic objects using dict with data
     batch_data = {
@@ -57,16 +57,16 @@ async def test_add_batch() -> None:
         "eta": None,
     }
 
-    await handlers.add_batch(**batch_data, repo=repo, session=session)
-    assert repo.get("b1") is not None
-    assert session.committed
+    await handlers.add_batch(**batch_data, uow=uow)
+    assert uow.batches.get("b1") is not None
+    assert uow.committed
 
 
 # Rewrite domain test against service layer to check that orders are still being allocated
 # Still leave all domain tests, they act as a living documentation written in the domain language
 @pytest.mark.asyncio
 async def test_prefers_warehouse_batches_to_shipments() -> None:
-    repo, session = FakeRepository([]), FakeSession()
+    uow = FakeUnitOfWork()
 
     in_stock_batch = {
         "reference": "in-stock-batch",
@@ -82,9 +82,9 @@ async def test_prefers_warehouse_batches_to_shipments() -> None:
         "eta": TOMMOROW,
     }
 
-    await handlers.add_batch(**in_stock_batch, repo=repo, session=session)
-    await handlers.add_batch(**shipment_batch, repo=repo, session=session)
-    await handlers.allocate(orderid="oref", sku="AMPLIFIER", qty=10, repo=repo, session=session)
+    await handlers.add_batch(**in_stock_batch, uow=uow)
+    await handlers.add_batch(**shipment_batch, uow=uow)
+    await handlers.allocate(orderid="oref", sku="AMPLIFIER", qty=10, uow=uow)
 
-    assert repo.get("in-stock-batch").available_quantity == 90
-    assert repo.get("shipment-batch").available_quantity == 100
+    assert uow.batches.get("in-stock-batch").available_quantity == 90
+    assert uow.batches.get("shipment-batch").available_quantity == 100

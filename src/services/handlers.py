@@ -3,11 +3,9 @@ from __future__ import annotations
 from datetime import date
 from typing import List, Optional
 
-from sqlalchemy.orm import Session
-
-from adapters.pyd_model import Batch
 from domain import model, services
 from repositories.repository import AbstractRepository
+from services.unit_of_work import AbstractUnitOfWork
 
 
 class InvalidSku(Exception):
@@ -27,7 +25,7 @@ def is_valid_sku(sku: str, batches: List[Batch]) -> bool:
     return sku in {b.sku for b in batches}
 
 
-async def allocate(orderid: str, sku: str, qty: int, repo: AbstractRepository, session: Session) -> str:
+async def allocate(orderid: str, sku: str, qty: int, uow: AbstractUnitOfWork) -> str:
     """
     Create from primitives order line and allocate it to a batch.
 
@@ -46,13 +44,15 @@ async def allocate(orderid: str, sku: str, qty: int, repo: AbstractRepository, s
     """
 
     line = model.OrderLine(orderid, sku, qty)
-    batches = repo.list()
 
-    if not is_valid_sku(line.sku, batches):
-        raise InvalidSku(f"Invalid sku {line.sku}")
+    with uow:
+        batches = uow.batches.list()
+        if not is_valid_sku(line.sku, batches):
+            raise InvalidSku(f"Invalid sku {line.sku}")
 
-    batchref = services.allocate(line, batches)
-    session.commit()
+        batchref = services.allocate(line, batches)
+        uow.commit()
+
     return batchref
 
 
@@ -61,8 +61,7 @@ async def add_batch(
     sku: str,
     purchased_quantity: int,
     eta: Optional[date],
-    repo: AbstractRepository,
-    session: Session,
+    uow: AbstractUnitOfWork,
 ) -> None:
     """
     Creates a new `Batch` instance from primitive values,
@@ -80,12 +79,15 @@ async def add_batch(
         None
     """
 
-    repo.add(
-        model.Batch(
-            ref=reference,
-            sku=sku,
-            qty=purchased_quantity,
-            eta=eta,
+    with uow:
+        uow.batches.add(
+            model.Batch(
+                ref=reference,
+                sku=sku,
+                qty=purchased_quantity,
+                eta=eta,
+            )
         )
-    )
-    session.commit()
+        uow.commit()
+
+

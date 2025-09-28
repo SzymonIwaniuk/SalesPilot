@@ -25,11 +25,16 @@ def in_memory_db() -> Engine:
 
 
 @pytest.fixture
-def session(in_memory_db: Engine) -> Generator[Session, Any, None]:
+def session_factory(in_memory_db: Engine) -> Generator[Session, Any, None]:
     start_mappers()
     db_session = sessionmaker(bind=in_memory_db)
-    yield db_session()
+    yield db_session
     clear_mappers()
+
+
+@pytest.fixture
+def session(session_factory: Session) -> Generator[Session, Any, None]:
+    return session_factory()
 
 
 @pytest.fixture(scope="session")
@@ -43,7 +48,7 @@ def postgres_db() -> Engine:
 def postgres_session(postgres_db) -> Generator[Session, Any, None]:
     start_mappers()
     pg_session = sessionmaker(bind=postgres_db)
-    yield pg_session()
+    yield pg_session
     clear_mappers()
 
 
@@ -113,15 +118,15 @@ def add_stock(postgres_session) -> Generator[Callable[[Iterable], None], Any, No
 
 
 @pytest_asyncio.fixture
-async def async_test_client(postgres_session, base_url) -> AsyncGenerator[AsyncClient, Any]:
-    app = make_app(db_session=postgres_session)
+async def async_test_client(base_url) -> AsyncGenerator[AsyncClient, Any]:
+    app = make_app()
     async with AsyncClient(transport=ASGITransport(app), base_url=base_url) as client:
         yield client
 
 
 @pytest.fixture
 def test_client(postgres_session) -> TestClient:
-    app = make_app(db_session=postgres_session)
+    app = make_app()
     return TestClient(app)
 
 

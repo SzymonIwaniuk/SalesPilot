@@ -6,10 +6,10 @@ from sqlalchemy.orm import Session
 from adapters.pyd_model import Batch, OrderLine
 from domain import events
 from repositories import repository
-from services import handlers
+from services import handlers, unit_of_work
 
 
-def make_app(db_session: Session) -> FastAPI:
+def make_app() -> FastAPI:
     app = FastAPI()
 
     @app.get("/health_check", status_code=HTTPStatus.OK)
@@ -21,11 +21,10 @@ def make_app(db_session: Session) -> FastAPI:
         lines: OrderLine,
     ) -> dict[str, str]:
 
-        repo = repository.SqlAlchemyRepository(db_session)
-
         try:
             batchref = await handlers.allocate(
-                **lines.model_dump(include={"sku", "qty", "orderid"}), repo=repo, session=db_session
+                **lines.model_dump(include={"sku", "qty", "orderid"}),
+                uow=unit_of_work.SqlAlchemyUnitOfWork(),
             )
         except (events.OutOfStock, handlers.InvalidSku) as e:
             raise HTTPException(HTTPStatus.BAD_REQUEST, detail=str(e))
@@ -33,12 +32,11 @@ def make_app(db_session: Session) -> FastAPI:
 
     @app.post("/add_batch", status_code=HTTPStatus.CREATED)
     async def add_batch(batch: Batch) -> dict[str, str]:
-        repo = repository.SqlAlchemyRepository(db_session)
+
         try:
             await handlers.add_batch(
                 **batch.model_dump(include={"reference", "sku", "purchased_quantity", "eta"}),
-                repo=repo,
-                session=db_session,
+                uow=unit_of_work.SqlAlchemyUnitOfWork(),
             )
         except handlers.OutOfStockInBatch as e:
             raise HTTPException(HTTPStatus.BAD_REQUEST, detail=e.args[0])
