@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import date
-from typing import NewType, Optional, Set
+from typing import List, NewType, Optional, Set
+
+from domain.events import OutOfStock
 
 # type hints
 Quantity = NewType("Quantity", int)
@@ -70,3 +72,17 @@ class Batch:
     @property
     def available_quantity(self) -> int:
         return self.purchased_quantity - self.allocated_quantity
+
+
+class Product:
+    def __init__(self, sku: Sku, batches: List[Batch]):
+        self.sku = sku
+        self.batches = batches
+
+    def allocate(self, line: OrderLine) -> str:
+        try:
+            batch = next(b for b in sorted(self.batches) if b.can_allocate(line))
+            batch.allocate(line)
+            return batch.reference
+        except StopIteration:
+            raise OutOfStock(f"Out of stock for sku {line.sku}")
