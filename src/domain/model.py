@@ -86,3 +86,4 @@ class Product:
             return batch.reference
         except StopIteration:
             raise OutOfStock(f"Out of stock for sku {line.sku}")
+

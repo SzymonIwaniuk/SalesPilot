@@ -56,7 +56,8 @@ async def test_add_batch() -> None:
     }
 
     await handlers.add_batch(**batch_data, uow=uow)
-    assert uow.batches.get("b1") is not None
+    batch = await uow.batches.get("b1")
+    assert batch is not None
     assert uow.committed
 
 
@@ -84,5 +85,8 @@ async def test_prefers_warehouse_batches_to_shipments() -> None:
     await handlers.add_batch(**shipment_batch, uow=uow)
     await handlers.allocate(orderid="oref", sku="AMPLIFIER", qty=10, uow=uow)
 
-    assert uow.batches.get("in-stock-batch").available_quantity == 90
-    assert uow.batches.get("shipment-batch").available_quantity == 100
+    in_stock = await uow.batches.get("in-stock-batch")
+    shipment = await uow.batches.get("shipment-batch")
+    
+    assert in_stock.available_quantity == 90
+    assert shipment.available_quantity == 100

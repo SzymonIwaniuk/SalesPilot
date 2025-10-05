@@ -1,6 +1,7 @@
 from sqlalchemy import (Column, Date, ForeignKey, Integer, MetaData, String,
                         Table)
 from sqlalchemy.orm import registry, relationship
+from sqlalchemy.orm import class_mapper
 
 from domain.model import Batch, OrderLine
 
@@ -37,15 +38,17 @@ allocations = Table(
 
 
 def start_mappers():
+    try:
+        class_mapper(OrderLine)
+    except:
+        lines_mapper = mapper_registry.map_imperatively(OrderLine, order_lines)
 
-    lines_mapper = mapper_registry.map_imperatively(OrderLine, order_lines)
-
-    mapper_registry.map_imperatively(
-        Batch,
-        batches,
-        properties={
-            "allocations": relationship(
-                lines_mapper, secondary=allocations, collection_class=set, cascade="all, delete", passive_deletes=True
-            )
-        },
-    )
+        mapper_registry.map_imperatively(
+            Batch,
+            batches,
+            properties={
+                "allocations": relationship(
+                    lines_mapper, secondary=allocations, collection_class=set, cascade="all, delete", passive_deletes=True
+                )
+            },
+        )

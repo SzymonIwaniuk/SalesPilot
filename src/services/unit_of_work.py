@@ -1,33 +1,52 @@
 import abc
 
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 
 import config
 from repositories import repository
 
-DEFAULT_SESSION_FACTORY = sessionmaker(
-    bind=create_engine(
-        config.get_postgres_uri(),
-    )
+DEFAULT_ENGINE = create_async_engine(
+    config.get_postgres_uri().replace("postgresql://", "postgresql+asyncpg://"),
+    echo=True,
+    future=True,
+    pool_pre_ping=True,
+    max_overflow=10,
+    pool_timeout=30,
+    pool_recycle=1800,
+    connect_args={
+        "server_settings": {
+            "jit": "off", 
+            "statement_timeout": "60000", 
+            "lock_timeout": "30000", 
+            "idle_in_transaction_session_timeout": "60000"  #
+        }
+    }
+)
+
+DEFAULT_SESSION_FACTORY = async_sessionmaker(
+    bind=DEFAULT_ENGINE,
+    expire_on_commit=False,
+    class_=AsyncSession,
+    future=True,
+    join_transaction_mode="create_savepoint"
 )
 
 
 class AbstractUnitOfWork(abc.ABC):
     batches: repository.AbstractRepository
 
-    def __enter__(self):
+    async def __aenter__(self):
         return self
 
-    def __exit__(self, *args):
-        self.rollback()
+    async def __aexit__(self, *args):
+        await self.rollback()
 
     @abc.abstractmethod
-    def commit(self):
+    async def commit(self):
         raise NotImplementedError
 
     @abc.abstractmethod
-    def rollback(self):
+    async def rollback(self):
         raise NotImplementedError
 
 
@@ -35,20 +54,34 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
     def __init__(self, session_factory=DEFAULT_SESSION_FACTORY):
         self.session_factory = session_factory
 
-    def __enter__(self):
-        self.session = self.session_factory()
+    async def __aenter__(self):
+        self.session = self.session_factory(future=True, join_transaction_mode="create_savepoint")
         self.batches = repository.SqlAlchemyRepository(self.session)
-        return super().__enter__()
+        await self.session.begin()
+        return self
 
-    def __exit__(self, *args):
-        super().__exit__(*args)
-        self.session.close()
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
+        try:
+            if self.session.in_transaction():
+                await self.rollback()
+        finally:
+            await self.session.close()
 
-    def commit(self):
-        self.session.commit()
+    async def commit(self):
+        try:
+            if self.session.in_transaction():
+                await self.session.commit()
+        except:
+            await self.rollback()
+            raise
 
-    def rollback(self):
-        self.session.rollback()
+    async def rollback(self):
+        if self.session.in_transaction():
+            try:
+                await self.session.rollback()
+            except:
+                await self.session.close()
+                raise
 
 
 class FakeUnitOfWork(AbstractUnitOfWork):
@@ -56,8 +89,8 @@ class FakeUnitOfWork(AbstractUnitOfWork):
         self.batches = repository.FakeRepository([])
         self.committed = False
 
-    def commit(self):
+    async def commit(self):
         self.committed = True
 
-    def rollback(self):
+    async def rollback(self):
         pass

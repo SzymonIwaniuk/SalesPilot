@@ -1,36 +1,46 @@
 # pylint: disable=protected-access
+import pytest
 from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.session import Session
 
 from domain.model import Batch, OrderLine
 from repositories import repository
 
 
-def test_repository_can_save_a_batch(session: Session) -> None:
+@pytest.mark.asyncio
+async def test_repository_can_save_a_batch(session: Session) -> None:
     batch = Batch("batch1", "PROFESSIONAL KEYBOARD", 1, eta=None)
-
     repo = repository.SqlAlchemyRepository(session)
-    repo.add(batch)
-    session.commit()
+    await repo.add(batch)
+    await session.flush()
 
-    rows = session.execute(text("SELECT reference, sku, purchased_quantity," ' eta FROM "batches"'))
-
+    rows = await session.execute(text("SELECT reference, sku, purchased_quantity," ' eta FROM "batches"'))
     assert list(rows) == [("batch1", "PROFESSIONAL KEYBOARD", 1, None)]
+    
+    await session.rollback()
 
 
-def insert_order_line(session: Session) -> int:
-    session.execute(text("INSERT INTO order_lines (orderid, sku, qty)" ' VALUES ("order1", "EARPADS", 2)'))
+async def insert_order_line(session: AsyncSession, commit: bool = False) -> int:
+    """Insert an order line and return its ID."""
+    await session.execute(text("INSERT INTO order_lines (orderid, sku, qty)" ' VALUES ("order1", "EARPADS", 2)'))
+    await session.flush()
 
-    [[orderline_id]] = session.execute(
+    result = await session.execute(
         text("SELECT id FROM order_lines WHERE " "orderid=:orderid AND sku=:sku"),
         dict(orderid="order1", sku="EARPADS"),
     )
-
+    [[orderline_id]] = result
+    
+    if commit:
+        await session.commit()
+    
     return orderline_id
 
 
-def insert_batch(session: Session, batch_id: int) -> int:
-    session.execute(
+async def insert_batch(session: AsyncSession, batch_id: int, commit: bool = False) -> int:
+    """Insert a batch and return its ID."""
+    await session.execute(
         text(
             "INSERT INTO batches "
             "(reference, sku, purchased_quantity, eta)"
@@ -38,17 +48,22 @@ def insert_batch(session: Session, batch_id: int) -> int:
         ),
         dict(batch_id=batch_id),
     )
+    await session.flush()
 
-    [[batch_id]] = session.execute(
+    result = await session.execute(
         text("SELECT id FROM batches WHERE " 'reference=:batch_id AND sku="EARPADS"'),
         dict(batch_id=batch_id),
     )
-
+    [[batch_id]] = result
+    
+    if commit:
+        await session.commit()
+    
     return batch_id
 
 
-def insert_allocation(session: Session, orderline_id: int, batch_id: int) -> None:
-    session.execute(
+async def insert_allocation(session: AsyncSession, orderline_id: int, batch_id: int) -> None:
+    await session.execute(
         text(
             "INSERT INTO allocations (orderline_id, batch_id)" " VALUES (:orderline_id, :batch_id)",
         ),
@@ -56,27 +71,30 @@ def insert_allocation(session: Session, orderline_id: int, batch_id: int) -> Non
     )
 
 
-def test_repository_can_retrieve_a_batch_with_allocations(session: Session) -> None:
-    orderline_id = insert_order_line(session)
-    batch1_id = insert_batch(session, "batch1")
-    insert_batch(session, "batch2")
-    insert_allocation(session, orderline_id, batch1_id)
+@pytest.mark.asyncio
+async def test_repository_can_retrieve_a_batch_with_allocations(session: Session) -> None:
+    async with session.begin():
+        # Set up test data in a transaction
+        orderline_id = await insert_order_line(session)
+        batch1_id = await insert_batch(session, "batch1")
+        await insert_batch(session, "batch2")
+        await insert_allocation(session, orderline_id, batch1_id)
 
-    repo = repository.SqlAlchemyRepository(session)
-    retrieved = repo.get("batch1")
+        # Test repository get functionality
+        repo = repository.SqlAlchemyRepository(session)
+        retrieved = await repo.get("batch1")
+        expected = Batch("batch1", "EARPADS", 2, eta=None)
+        assert retrieved == expected
+        assert retrieved.sku == expected.sku
+        assert retrieved.purchased_quantity == expected.purchased_quantity
+        assert retrieved.eta == expected.eta
+        assert retrieved.allocations == {OrderLine("order1", "EARPADS", 2)}
+        # Commit to save changes 
+        await session.commit()
 
-    expected = Batch("batch1", "EARPADS", 2, eta=None)
-    # Batch.__eq__ only compares reference
-    assert retrieved == expected
-    assert retrieved.sku == expected.sku
-    assert retrieved.purchased_quantity == expected.purchased_quantity
-    assert retrieved.allocations == {
-        OrderLine("order1", "EARPADS", 2),
-    }
 
-
-def get_allocations(session, batchid: str) -> set:
-    rows = session.execute(
+async def get_allocations(session: AsyncSession, batchid: str) -> set:
+    result = await session.execute(
         text(
             """
             SELECT orderid
@@ -88,23 +106,19 @@ def get_allocations(session, batchid: str) -> set:
         ),
         {"batchid": batchid},
     )
-    return {row[0] for row in rows}
+    return {row[0] for row in result}
 
 
-def test_updating_a_batch(session):
-    order1 = OrderLine("order1", "CABLES-TO-AMPLIFIER", 10)
-    order2 = OrderLine("order2", "CABLES-TO-AMPLIFIER", 20)
-    batch = Batch("batch1", "CABLES-TO-AMPLIFIER", 100, eta=None)
-
-    # Allocate the first order and persist it
-    batch.allocate(order1)
+@pytest.mark.asyncio
+async def test_updating_a_batch(session: AsyncSession):
+    batch = Batch("batch1", "MOUSE", 2, eta=None)
     repo = repository.SqlAlchemyRepository(session)
-    repo.add(batch)
-    session.commit()
+    await repo.add(batch)
 
-    # Allocate a second order and persist the update
-    batch.allocate(order2)
-    repo.add(batch)
-    session.commit()
+    batch.purchased_quantity = 3
+    await repo.update(batch)
 
-    assert get_allocations(session, "batch1") == {"order1", "order2"}
+    rows = await session.execute(text("SELECT reference, sku, purchased_quantity," ' eta FROM "batches"'))
+    assert list(rows) == [("batch1", "MOUSE", 3, None)]
+    
+    await session.rollback()

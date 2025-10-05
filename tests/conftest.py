@@ -1,139 +1,188 @@
 import os
 import time
+import asyncio
 from pathlib import Path
 from typing import Any, AsyncGenerator, Callable, Generator, Iterable
 
 import pytest
 import pytest_asyncio
-from httpx import ASGITransport, AsyncClient
-from sqlalchemy import create_engine, text
+import httpx
+from fastapi import FastAPI
 from sqlalchemy.engine import Engine
-from sqlalchemy.orm import clear_mappers, sessionmaker
-from sqlalchemy.orm.session import Session
-from starlette.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.orm import clear_mappers
 
 from config import get_postgres_uri
 from dbschema.orm import metadata, start_mappers
+from domain.model import Batch
 from entrypoints.fastapi_app import make_app
 
 
-@pytest.fixture
-def in_memory_db() -> Engine:
-    engine = create_engine("sqlite:///:memory:")
-    metadata.create_all(engine)
-    return engine
-
-
-@pytest.fixture
-def session_factory(in_memory_db: Engine) -> Generator[Session, Any, None]:
-    start_mappers()
-    db_session = sessionmaker(bind=in_memory_db)
-    yield db_session
-    clear_mappers()
-
-
-@pytest.fixture
-def session(session_factory: Session) -> Generator[Session, Any, None]:
-    return session_factory()
-
+@pytest.fixture(scope="session")
+def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
+    """Create an instance of the default event loop for each test session."""
+    policy = asyncio.get_event_loop_policy()
+    loop = policy.new_event_loop()
+    policy.set_event_loop(loop)
+    yield loop
+    loop.close()
 
 @pytest.fixture(scope="session")
-def postgres_db() -> Engine:
-    engine = create_engine(get_postgres_uri())
-    metadata.create_all(engine)
-    return engine
-
-
-@pytest.fixture
-def postgres_session(postgres_db) -> Generator[Session, Any, None]:
+def orm_mappers():
+    """Session-scoped fixture to manage SQLAlchemy mapper lifecycle."""
     start_mappers()
-    pg_session = sessionmaker(bind=postgres_db)
-    yield pg_session
+    yield
     clear_mappers()
 
-
-def pytest_addoption(parser) -> None:
-    default_url = os.getenv("TEST_SERVER", None) or "http://test"
-    parser.addoption("--base-url", action="store", default=default_url, help="base url of the api server")
-
-
-@pytest.fixture
-def base_url(request) -> Any:
-    return request.config.getoption("--base-url")
-
-
-# CURRENTLY UNUSED, WORKING AS DOCUMENTATION
-@pytest.fixture
-def add_stock(postgres_session) -> Generator[Callable[[Iterable], None], Any, None]:
-    batches_added = set()
-    skus_added = set()
-
-    def add_stock(lines):
-        for ref, sku, qty, eta in lines:
-            postgres_session.execute(
-                text(
-                    "INSERT INTO batches (reference, sku, purchased_quantity, eta)" " VALUES (:ref, :sku, :qty, :eta)",
-                ),
-                dict(ref=ref, sku=sku, qty=qty, eta=eta),
-            )
-
-            [[batch_id]] = postgres_session.execute(
-                text(
-                    "SELECT id FROM batches WHERE reference = :ref AND sku = :sku",
-                ),
-                dict(ref=ref, sku=sku),
-            )
-
-            batches_added.add(batch_id)
-            skus_added.add(sku)
-
-        postgres_session.commit()
-
-    yield add_stock
-
-    for batch_id in batches_added:
-        postgres_session.execute(
-            text(
-                "DELETE FROM allocations WHERE batch_id=:batch_id",
-            ),
-            dict(batch_id=batch_id),
-        )
-
-        postgres_session.execute(
-            text(
-                "DELETE FROM batches WHERE id=:batch_id",
-            ),
-            dict(batch_id=batch_id),
-        )
-
-        for sku in skus_added:
-            postgres_session.execute(
-                text(
-                    "DELETE FROM order_lines WHERE sku=:sku",
-                ),
-                dict(sku=sku),
-            )
-
-        postgres_session.commit()
-
+@pytest_asyncio.fixture(scope="session")
+async def test_app(orm_mappers, event_loop) -> FastAPI:
+    """Create FastAPI app for testing."""
+    import asyncio
+    asyncio.set_event_loop(event_loop)
+    app = make_app()
+    return app
 
 @pytest_asyncio.fixture
-async def async_test_client(base_url) -> AsyncGenerator[AsyncClient, Any]:
-    app = make_app()
-
-    async with AsyncClient(transport=ASGITransport(app), base_url=base_url) as client:
+async def async_test_client(test_app, event_loop) -> AsyncGenerator[httpx.AsyncClient, None]:
+    """Get a test client instance that automatically follows redirects."""
+    import asyncio
+    asyncio.set_event_loop(event_loop)
+    
+    client = httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=test_app),
+        base_url="http://test",
+        timeout=httpx.Timeout(10.0, read=60.0),
+        follow_redirects=True
+    )
+    client.headers.update({"Content-Type": "application/json"})
+    try:
         yield client
-    clear_mappers()
+    finally:
+        await client.aclose()
 
+@pytest_asyncio.fixture
+async def in_memory_db(orm_mappers) -> Engine:
+    """Create an in-memory SQLite database for testing."""
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        echo=True,
+    )
+    async with engine.begin() as conn:
+        await conn.run_sync(metadata.create_all)
+    try:
+        yield engine
+    finally:
+        await engine.dispose()
+
+@pytest_asyncio.fixture(scope="session")
+async def postgres_db(orm_mappers, event_loop) -> AsyncGenerator[Engine, None]:
+    """Get a PostgreSQL database for testing."""
+    engine = create_async_engine(
+        get_postgres_uri().replace("postgresql://", "postgresql+asyncpg://"),
+        echo=True,
+        pool_pre_ping=True,  
+        pool_recycle=3600, 
+        max_overflow=5,  
+        pool_size=5, 
+        isolation_level="REPEATABLE READ",  
+        connect_args={
+            "server_settings": {
+                "jit": "off",  
+                "statement_timeout": "60000",  
+                "lock_timeout": "30000",  
+            }
+        }
+    )
+    
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(metadata.create_all)
+        yield engine
+    finally:
+        try:
+            async with engine.begin() as conn:
+                await conn.run_sync(metadata.drop_all)
+        finally:
+            await engine.dispose()
+
+@pytest_asyncio.fixture
+async def session_factory(in_memory_db: Engine):
+    """Create a session factory for SQLite testing."""
+    return async_sessionmaker(
+        bind=in_memory_db,
+        expire_on_commit=False,  
+        autoflush=True, 
+        future=True, 
+        class_=AsyncSession
+    )
+
+@pytest_asyncio.fixture
+async def postgres_session_factory(postgres_db: Engine):
+    """Create a session factory for PostgreSQL testing."""
+    return async_sessionmaker(
+        bind=postgres_db,
+        expire_on_commit=False,
+        class_=AsyncSession,
+        future=True,
+        join_transaction_mode="create_savepoint"
+    )
+
+@pytest_asyncio.fixture
+async def session(session_factory) -> AsyncGenerator[AsyncSession, None]:
+    """Get a SQLite session for testing."""
+    session = session_factory()
+    try:
+        yield session
+    finally:
+        await session.close()
+
+@pytest_asyncio.fixture
+async def postgres_session(postgres_session_factory, event_loop) -> AsyncGenerator[AsyncSession, None]:
+    """Get a PostgreSQL session for testing."""
+    session = postgres_session_factory()
+    try:
+        yield session
+    finally:
+        await session.close()
+
+@pytest_asyncio.fixture
+async def add_stock(postgres_session: AsyncSession) -> AsyncGenerator[Callable[[list[tuple]], None], None]:
+    """Add stock batches to the database using the ORM.
+    
+    Args:
+        lines: List of tuples (reference, sku, quantity, eta)
+    """
+    batches_to_delete = []
+    
+    async def add_stock(lines: list[tuple]) -> None:
+        async with postgres_session.begin():
+            for ref, sku, qty, eta in lines:
+                batch = Batch(ref, sku, qty, eta)
+                postgres_session.add(batch)
+                batches_to_delete.append(batch)
+    
+    yield add_stock
+    
+    try:
+        async with postgres_session.begin():
+            for batch in batches_to_delete:
+                await postgres_session.delete(batch)
+    except Exception:
+        import logging
+        logging.exception("Error during test cleanup")
+
+def pytest_addoption(parser) -> None:
+    """Add custom pytest command line options."""
+    default_url = os.getenv("TEST_SERVER", "http://test")
+    parser.addoption("--base-url", action="store", default=default_url, help="base url of the api server")
 
 @pytest.fixture
-def test_client(postgres_session) -> TestClient:
-    app = make_app()
-    yield TestClient(app)
-    clear_mappers()
-
+def base_url(request) -> str:
+    """Get the base URL for API testing."""
+    return request.config.getoption("--base-url")
 
 @pytest.fixture
 def restart_api() -> None:
+    """Touch the FastAPI app file to trigger reload in development."""
     (Path(__file__).parent / "../src/entrypoints/fastapi_app.py").touch()
     time.sleep(0.5)

@@ -4,6 +4,7 @@ from datetime import date
 from typing import List, Optional
 
 from domain import model, services
+from services import handlers
 from services.unit_of_work import AbstractUnitOfWork
 
 
@@ -44,13 +45,13 @@ async def allocate(orderid: str, sku: str, qty: int, uow: AbstractUnitOfWork) ->
 
     line = model.OrderLine(orderid, sku, qty)
 
-    with uow:
-        batches = uow.batches.list()
+    async with uow:
+        batches = await uow.batches.list()
         if not is_valid_sku(line.sku, batches):
             raise InvalidSku(f"Invalid sku {line.sku}")
 
         batchref = services.allocate(line, batches)
-        uow.commit()
+        await uow.commit()
 
     return batchref
 
@@ -71,13 +72,19 @@ async def add_batch(
         sku: Stock Keeping Unit identifying the product.
         purchased_quantity: Total quantity purchased in this batch.
         eta: Estimated time of arrival for the batch. Can be `None`.
-        repo: The repository where the batch will be stored.
-        session: The database session for committing the change.
+        uow: Unit of work for handling database operations.
 
     Returns:
         None
+
+    Raises:
+        InvalidSku: If the batch data is invalid.
     """
-    batch = model.Batch(ref=reference, sku=sku, qty=purchased_quantity, eta=eta)
-    with uow:
-        uow.batches.add(batch)
-        uow.commit()
+    if not sku or not reference or purchased_quantity <= 0:
+        raise OutOfStockInBatch("Invalid batch data")
+
+    async with uow:
+        batch = model.Batch(reference, sku, purchased_quantity, eta)
+        await uow.batches.add(batch)
+        await uow.commit()
+        return None

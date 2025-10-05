@@ -33,6 +33,10 @@ async def post_to_add_batch(async_test_client, ref, sku, qty, eta) -> None:
         f"{url}/add_batch",
         json={"reference": ref, "sku": sku, "purchased_quantity": qty, "eta": eta},
     )
+    
+    if not sku or not ref or qty <= 0:
+        assert response.status_code == HTTPStatus.BAD_REQUEST
+        return
 
     assert response.status_code == HTTPStatus.CREATED
 
@@ -82,12 +86,10 @@ async def test_allocations_are_persisted(async_test_client: AsyncClient) -> None
 
     url = config.get_api_url()
 
-    # first order uses up all stock in batch 1
     r = await async_test_client.post(f"{url}/allocate", json=line1)
     assert r.status_code == HTTPStatus.ACCEPTED
     assert r.json() == {"status": "Ok", "batchref": batch1}
 
-    # second should go to batch 2
     r = await async_test_client.post(f"{url}/allocate", json=line2)
     assert r.status_code == HTTPStatus.ACCEPTED
     assert r.json() == {"status": "Ok", "batchref": batch2}
