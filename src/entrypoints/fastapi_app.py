@@ -15,7 +15,8 @@ async def create_tables(app: FastAPI):
     orm.start_mappers()
     async with unit_of_work.DEFAULT_ENGINE.begin() as conn:
         await conn.run_sync(orm.metadata.create_all)
-
+    yield
+    
 
 def make_app() -> FastAPI:
 
