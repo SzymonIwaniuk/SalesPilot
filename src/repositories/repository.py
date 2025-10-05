@@ -14,17 +14,13 @@ class AbstractRepository(ABC):
 
     This class defines the interface for repository implementations that handle
     storage and retrieval of Batch entities. Subclasses must implement methods
-    to add, get, update, and list batches.
+    to add, get
 
     Methods:
         add(batch: Batch):
             Adds a Batch instance to the repository.
         get(reference: str) -> Batch:
             Retrieves a Batch by its unique reference.
-        update(batch: Batch):
-            Updates a Batch instance in the repository.
-        list() -> List[Batch]:
-            Lists all batches in the repository.
     """
 
     @abstractmethod
@@ -35,13 +31,6 @@ class AbstractRepository(ABC):
     async def get(self, reference: str) -> Batch:
         raise NotImplementedError
 
-    @abstractmethod
-    async def update(self, batch: Batch) -> None:
-        raise NotImplementedError
-
-    @abstractmethod
-    async def list(self) -> List[Batch]:
-        raise NotImplementedError
 
 
 class SqlAlchemyRepository(AbstractRepository):
@@ -59,7 +48,7 @@ class SqlAlchemyRepository(AbstractRepository):
         return result.scalar_one_or_none()
 
     async def list(self) -> List[Batch]:
-        result = await self.session.execute(select(Batch).options(selectinload(Batch.allocations)))
+        result = await self.session.execute(select(Batch).options(selectinload(model.Batch.allocations)))
         return list(result.scalars().all())
 
     async def update(self, batch: Batch) -> None:
@@ -81,9 +70,6 @@ class FakeRepository(AbstractRepository):
 
     async def list(self) -> List[Batch]:
         return list(self._batches)
-
-    async def update(self, batch: Batch) -> None:
-        pass
 
     @staticmethod
     def for_batch(ref, sku, qty, eta=None):

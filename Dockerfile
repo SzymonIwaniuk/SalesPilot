@@ -10,9 +10,10 @@ COPY --chown=nonroot:nonroot src/ .
 
 RUN python -m venv /venv
 ENV PATH="/venv/bin:$PATH"
+ENV PYTHONPATH="/src"
 
 RUN pip install --no-cache-dir -r requirements.txt
 
 USER nonroot
 
-CMD uvicorn run:app --host 0.0.0.0 --port 80 --reload
+CMD uvicorn run:app --host 0.0.0.0 --port 8000 --reload

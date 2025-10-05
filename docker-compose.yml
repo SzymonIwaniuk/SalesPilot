@@ -1,26 +1,30 @@
 version: "3.9"
 services:
   postgres:
-    image: postgres:15-alpine
+    image: postgres:16-alpine
     ports:
-      - "54321:54321"
+      - "54321:5432" 
     environment:
       POSTGRES_USER: allocation
-      POSTGRES_PASSWORD: abc123
+      POSTGRES_PASSWORD: allocate
       POSTGRES_DB: allocation
-    command: -p 54321
+      POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
   api:
-    build: .
+    build: 
+      context: .
+      dockerfile: Dockerfile
     ports:
-      - "80:80"
-    depends_on:
-      - postgres
+      - "80:8000"
     environment:
-      DB_HOST: postgres
-      DB_PASSWORD: abc123
+      - DB_HOST=postgres
+      - DB_PASSWORD=allocate
+      - PYTHONPATH=/src
+    volumes:
+      - .:/src
+    command: uvicorn src.run:app --host 0.0.0.0 --port 8000 --reload
 
 volumes:
   postgres_data:

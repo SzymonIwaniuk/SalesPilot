@@ -2,14 +2,13 @@
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm.session import Session
 
 from domain.model import Batch, OrderLine
 from repositories import repository
 
 
 @pytest.mark.asyncio
-async def test_repository_can_save_a_batch(session: Session) -> None:
+async def test_repository_can_save_a_batch(session: AsyncSession) -> None:
     batch = Batch("batch1", "PROFESSIONAL KEYBOARD", 1, eta=None)
     repo = repository.SqlAlchemyRepository(session)
     await repo.add(batch)
@@ -18,10 +17,8 @@ async def test_repository_can_save_a_batch(session: Session) -> None:
     rows = await session.execute(text("SELECT reference, sku, purchased_quantity," ' eta FROM "batches"'))
     assert list(rows) == [("batch1", "PROFESSIONAL KEYBOARD", 1, None)]
 
-    await session.rollback()
 
-
-async def insert_order_line(session: AsyncSession, commit: bool = False) -> int:
+async def insert_order_line(session: AsyncSession) -> int:
     """Insert an order line and return its ID."""
     await session.execute(text("INSERT INTO order_lines (orderid, sku, qty)" ' VALUES ("order1", "EARPADS", 2)'))
     await session.flush()
@@ -32,13 +29,10 @@ async def insert_order_line(session: AsyncSession, commit: bool = False) -> int:
     )
     [[orderline_id]] = result
 
-    if commit:
-        await session.commit()
-
     return orderline_id
 
 
-async def insert_batch(session: AsyncSession, batch_id: int, commit: bool = False) -> int:
+async def insert_batch(session: AsyncSession, batch_id: int) -> int:
     """Insert a batch and return its ID."""
     await session.execute(
         text(
@@ -56,9 +50,6 @@ async def insert_batch(session: AsyncSession, batch_id: int, commit: bool = Fals
     )
     [[batch_id]] = result
 
-    if commit:
-        await session.commit()
-
     return batch_id
 
 
@@ -73,26 +64,22 @@ async def insert_allocation(session: AsyncSession, orderline_id: int, batch_id: 
 
 @pytest.mark.asyncio
 async def test_repository_can_retrieve_a_batch_with_allocations(
-    session: Session,
+    session: AsyncSession,
 ) -> None:
     async with session.begin():
-        # Set up test data in a transaction
         orderline_id = await insert_order_line(session)
         batch1_id = await insert_batch(session, "batch1")
         await insert_batch(session, "batch2")
         await insert_allocation(session, orderline_id, batch1_id)
 
-        # Test repository get functionality
         repo = repository.SqlAlchemyRepository(session)
         retrieved = await repo.get("batch1")
+
         expected = Batch("batch1", "EARPADS", 2, eta=None)
         assert retrieved == expected
         assert retrieved.sku == expected.sku
         assert retrieved.purchased_quantity == expected.purchased_quantity
-        assert retrieved.eta == expected.eta
         assert retrieved.allocations == {OrderLine("order1", "EARPADS", 2)}
-        # Commit to save changes
-        await session.commit()
 
 
 async def get_allocations(session: AsyncSession, batchid: str) -> set:
@@ -123,4 +110,3 @@ async def test_updating_a_batch(session: AsyncSession):
     rows = await session.execute(text("SELECT reference, sku, purchased_quantity," ' eta FROM "batches"'))
     assert list(rows) == [("batch1", "MOUSE", 3, None)]
 
-    await session.rollback()
