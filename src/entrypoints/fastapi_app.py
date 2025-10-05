@@ -6,13 +6,20 @@ from adapters.pyd_model import Batch, OrderLine
 from dbschema import orm
 from domain import events
 from services import handlers, unit_of_work
+from contextlib import asynccontextmanager
 
+
+@asynccontextmanager
+async def create_tables(app: FastAPI):
+    """Lifespan function to create tables on startup."""
+    orm.start_mappers()
+    async with unit_of_work.DEFAULT_ENGINE.begin() as conn:
+        await conn.run_sync(orm.metadata.create_all)
+    yield
 
 def make_app() -> FastAPI:
-    orm.start_mappers()
 
-    app = FastAPI()
-    
+    app = FastAPI(lifespan=create_tables)
 
     @app.get("/health_check", status_code=HTTPStatus.OK)
     async def health_check() -> dict[str, str]:

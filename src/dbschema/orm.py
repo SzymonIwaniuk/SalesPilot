@@ -1,7 +1,6 @@
 from sqlalchemy import (Column, Date, ForeignKey, Integer, MetaData, String,
                         Table)
-from sqlalchemy.orm import registry, relationship
-from sqlalchemy.orm import class_mapper
+from sqlalchemy.orm import class_mapper, registry, relationship
 
 from domain.model import Batch, OrderLine
 
@@ -48,7 +47,11 @@ def start_mappers():
             batches,
             properties={
                 "allocations": relationship(
-                    lines_mapper, secondary=allocations, collection_class=set, cascade="all, delete", passive_deletes=True
+                    lines_mapper,
+                    secondary=allocations,
+                    collection_class=set,
+                    cascade="all, delete",
+                    passive_deletes=True,
                 )
             },
         )

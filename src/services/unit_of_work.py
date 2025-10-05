@@ -1,6 +1,7 @@
 import abc
 
-from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
+                                    create_async_engine)
 
 import config
 from repositories import repository
@@ -10,25 +11,12 @@ DEFAULT_ENGINE = create_async_engine(
     echo=True,
     future=True,
     pool_pre_ping=True,
-    max_overflow=10,
-    pool_timeout=30,
-    pool_recycle=1800,
-    connect_args={
-        "server_settings": {
-            "jit": "off", 
-            "statement_timeout": "60000", 
-            "lock_timeout": "30000", 
-            "idle_in_transaction_session_timeout": "60000"  #
-        }
-    }
 )
 
 DEFAULT_SESSION_FACTORY = async_sessionmaker(
     bind=DEFAULT_ENGINE,
     expire_on_commit=False,
     class_=AsyncSession,
-    future=True,
-    join_transaction_mode="create_savepoint"
 )
 
 
@@ -61,27 +49,13 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
         return self
 
     async def __aexit__(self, exc_type, exc_val, exc_tb):
-        try:
-            if self.session.in_transaction():
-                await self.rollback()
-        finally:
-            await self.session.close()
+        await self.session.close()
 
     async def commit(self):
-        try:
-            if self.session.in_transaction():
-                await self.session.commit()
-        except:
-            await self.rollback()
-            raise
-
+        await self.session.commit()
+  
     async def rollback(self):
-        if self.session.in_transaction():
-            try:
-                await self.session.rollback()
-            except:
-                await self.session.close()
-                raise
+        await self.session.rollback()
 
 
 class FakeUnitOfWork(AbstractUnitOfWork):

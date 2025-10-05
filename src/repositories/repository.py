@@ -1,19 +1,19 @@
 from abc import ABC, abstractmethod
 from typing import List
 
-from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from domain.model import Batch
 from domain import model
+from domain.model import Batch
 
 
 class AbstractRepository(ABC):
     """Abstract base class for batch repositories.
 
-    This class defines the interface for repository implementations that handle 
-    storage and retrieval of Batch entities. Subclasses must implement methods 
+    This class defines the interface for repository implementations that handle
+    storage and retrieval of Batch entities. Subclasses must implement methods
     to add, get, update, and list batches.
 
     Methods:
@@ -34,11 +34,11 @@ class AbstractRepository(ABC):
     @abstractmethod
     async def get(self, reference: str) -> Batch:
         raise NotImplementedError
-        
+
     @abstractmethod
     async def update(self, batch: Batch) -> None:
         raise NotImplementedError
-        
+
     @abstractmethod
     async def list(self) -> List[Batch]:
         raise NotImplementedError
@@ -59,15 +59,12 @@ class SqlAlchemyRepository(AbstractRepository):
         return result.scalar_one_or_none()
 
     async def list(self) -> List[Batch]:
-        result = await self.session.execute(
-            select(Batch).options(selectinload(Batch.allocations))
-        )
+        result = await self.session.execute(select(Batch).options(selectinload(Batch.allocations)))
         return list(result.scalars().all())
-
 
     async def update(self, batch: Batch) -> None:
         await self.session.flush()
-        
+
 
 class FakeRepository(AbstractRepository):
     def __init__(self, batches) -> None:
@@ -87,7 +84,7 @@ class FakeRepository(AbstractRepository):
 
     async def update(self, batch: Batch) -> None:
         pass
-    
+
     @staticmethod
     def for_batch(ref, sku, qty, eta=None):
         return FakeRepository([model.Batch(reference=ref, sku=sku, purchased_quantity=qty, eta=eta)])
