@@ -1,3 +1,4 @@
+from contextlib import asynccontextmanager
 from http import HTTPStatus
 
 from fastapi import FastAPI, HTTPException
@@ -6,7 +7,6 @@ from adapters.pyd_model import Batch, OrderLine
 from dbschema import orm
 from domain import events
 from services import handlers, unit_of_work
-from contextlib import asynccontextmanager
 
 
 @asynccontextmanager
@@ -16,6 +16,7 @@ async def create_tables(app: FastAPI):
     async with unit_of_work.DEFAULT_ENGINE.begin() as conn:
         await conn.run_sync(orm.metadata.create_all)
     yield
+
 
 def make_app() -> FastAPI:
 

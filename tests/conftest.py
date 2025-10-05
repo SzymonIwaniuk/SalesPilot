@@ -39,7 +39,6 @@ def orm_mappers():
 @pytest_asyncio.fixture(scope="session")
 async def test_app(orm_mappers, event_loop) -> FastAPI:
     """Create FastAPI app for testing."""
-    import asyncio
 
     asyncio.set_event_loop(event_loop)
     app = make_app()
@@ -49,7 +48,6 @@ async def test_app(orm_mappers, event_loop) -> FastAPI:
 @pytest_asyncio.fixture
 async def async_test_client(test_app, event_loop) -> AsyncGenerator[httpx.AsyncClient, None]:
     """Get a test client instance that automatically follows redirects."""
-    import asyncio
 
     asyncio.set_event_loop(event_loop)
 
@@ -70,7 +68,6 @@ async def in_memory_db(orm_mappers) -> Engine:
     """Create an in-memory SQLite database for testing."""
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
-        echo=True,
     )
     async with engine.begin() as conn:
         await conn.run_sync(metadata.create_all)
@@ -84,13 +81,7 @@ async def in_memory_db(orm_mappers) -> Engine:
 async def postgres_db(orm_mappers, event_loop) -> AsyncGenerator[Engine, None]:
     """Get a PostgreSQL database for testing."""
     engine = create_async_engine(
-        get_postgres_uri().replace("postgresql://", "postgresql+asyncpg://"),
-        echo=True,
-        pool_pre_ping=True,
-        pool_recycle=3600,
-        max_overflow=5,
-        pool_size=5,
-        isolation_level="REPEATABLE READ",
+        get_postgres_uri(),
     )
 
     try:
@@ -118,10 +109,6 @@ async def postgres_session_factory(postgres_db: Engine):
     """Create a session factory for PostgreSQL testing."""
     return async_sessionmaker(
         bind=postgres_db,
-        expire_on_commit=False,
-        class_=AsyncSession,
-        future=True,
-        join_transaction_mode="create_savepoint",
     )
 
 
@@ -168,9 +155,7 @@ async def add_stock(postgres_session: AsyncSession) -> AsyncGenerator[Callable[[
             for batch in batches_to_delete:
                 await postgres_session.delete(batch)
     except Exception:
-        import logging
-
-        logging.exception("Error during test cleanup")
+        pass
 
 
 def pytest_addoption(parser) -> None:

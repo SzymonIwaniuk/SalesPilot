@@ -72,7 +72,9 @@ async def insert_allocation(session: AsyncSession, orderline_id: int, batch_id: 
 
 
 @pytest.mark.asyncio
-async def test_repository_can_retrieve_a_batch_with_allocations(session: Session) -> None:
+async def test_repository_can_retrieve_a_batch_with_allocations(
+    session: Session,
+) -> None:
     async with session.begin():
         # Set up test data in a transaction
         orderline_id = await insert_order_line(session)

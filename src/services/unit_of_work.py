@@ -1,22 +1,16 @@
 import abc
 
-from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
-                                    create_async_engine)
+from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 import config
 from repositories import repository
 
 DEFAULT_ENGINE = create_async_engine(
-    config.get_postgres_uri().replace("postgresql://", "postgresql+asyncpg://"),
-    echo=True,
-    future=True,
-    pool_pre_ping=True,
+    config.get_postgres_uri(),
 )
 
 DEFAULT_SESSION_FACTORY = async_sessionmaker(
     bind=DEFAULT_ENGINE,
-    expire_on_commit=False,
-    class_=AsyncSession,
 )
 
 
@@ -43,7 +37,7 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
         self.session_factory = session_factory
 
     async def __aenter__(self):
-        self.session = self.session_factory(future=True, join_transaction_mode="create_savepoint")
+        self.session = self.session_factory()
         self.batches = repository.SqlAlchemyRepository(self.session)
         await self.session.begin()
         return self
