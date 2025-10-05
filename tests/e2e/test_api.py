@@ -33,7 +33,7 @@ async def post_to_add_batch(async_test_client, ref, sku, qty, eta) -> None:
         f"{url}/add_batch",
         json={"reference": ref, "sku": sku, "purchased_quantity": qty, "eta": eta},
     )
-    
+
     if not sku or not ref or qty <= 0:
         assert response.status_code == HTTPStatus.BAD_REQUEST
         return

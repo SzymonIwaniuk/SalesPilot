@@ -17,7 +17,7 @@ async def test_repository_can_save_a_batch(session: Session) -> None:
 
     rows = await session.execute(text("SELECT reference, sku, purchased_quantity," ' eta FROM "batches"'))
     assert list(rows) == [("batch1", "PROFESSIONAL KEYBOARD", 1, None)]
-    
+
     await session.rollback()
 
 
@@ -31,10 +31,10 @@ async def insert_order_line(session: AsyncSession, commit: bool = False) -> int:
         dict(orderid="order1", sku="EARPADS"),
     )
     [[orderline_id]] = result
-    
+
     if commit:
         await session.commit()
-    
+
     return orderline_id
 
 
@@ -55,10 +55,10 @@ async def insert_batch(session: AsyncSession, batch_id: int, commit: bool = Fals
         dict(batch_id=batch_id),
     )
     [[batch_id]] = result
-    
+
     if commit:
         await session.commit()
-    
+
     return batch_id
 
 
@@ -89,7 +89,7 @@ async def test_repository_can_retrieve_a_batch_with_allocations(session: Session
         assert retrieved.purchased_quantity == expected.purchased_quantity
         assert retrieved.eta == expected.eta
         assert retrieved.allocations == {OrderLine("order1", "EARPADS", 2)}
-        # Commit to save changes 
+        # Commit to save changes
         await session.commit()
 
 
@@ -120,5 +120,5 @@ async def test_updating_a_batch(session: AsyncSession):
 
     rows = await session.execute(text("SELECT reference, sku, purchased_quantity," ' eta FROM "batches"'))
     assert list(rows) == [("batch1", "MOUSE", 3, None)]
-    
+
     await session.rollback()

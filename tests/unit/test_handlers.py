@@ -87,6 +87,6 @@ async def test_prefers_warehouse_batches_to_shipments() -> None:
 
     in_stock = await uow.batches.get("in-stock-batch")
     shipment = await uow.batches.get("shipment-batch")
-    
+
     assert in_stock.available_quantity == 90
     assert shipment.available_quantity == 100

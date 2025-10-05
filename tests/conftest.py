@@ -1,15 +1,16 @@
+import asyncio
 import os
 import time
-import asyncio
 from pathlib import Path
-from typing import Any, AsyncGenerator, Callable, Generator, Iterable
+from typing import AsyncGenerator, Callable, Generator
 
+import httpx
 import pytest
 import pytest_asyncio
-import httpx
 from fastapi import FastAPI
 from sqlalchemy.engine import Engine
-from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine, async_sessionmaker
+from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
+                                    create_async_engine)
 from sqlalchemy.orm import clear_mappers
 
 from config import get_postgres_uri
@@ -23,9 +24,9 @@ def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
     """Create an instance of the default event loop for each test session."""
     policy = asyncio.get_event_loop_policy()
     loop = policy.new_event_loop()
-    policy.set_event_loop(loop)
     yield loop
     loop.close()
+
 
 @pytest.fixture(scope="session")
 def orm_mappers():
@@ -34,31 +35,35 @@ def orm_mappers():
     yield
     clear_mappers()
 
+
 @pytest_asyncio.fixture(scope="session")
 async def test_app(orm_mappers, event_loop) -> FastAPI:
     """Create FastAPI app for testing."""
     import asyncio
+
     asyncio.set_event_loop(event_loop)
     app = make_app()
     return app
+
 
 @pytest_asyncio.fixture
 async def async_test_client(test_app, event_loop) -> AsyncGenerator[httpx.AsyncClient, None]:
     """Get a test client instance that automatically follows redirects."""
     import asyncio
+
     asyncio.set_event_loop(event_loop)
-    
+
     client = httpx.AsyncClient(
         transport=httpx.ASGITransport(app=test_app),
         base_url="http://test",
-        timeout=httpx.Timeout(10.0, read=60.0),
-        follow_redirects=True
+        follow_redirects=True,
     )
     client.headers.update({"Content-Type": "application/json"})
     try:
         yield client
     finally:
         await client.aclose()
+
 
 @pytest_asyncio.fixture
 async def in_memory_db(orm_mappers) -> Engine:
@@ -74,26 +79,20 @@ async def in_memory_db(orm_mappers) -> Engine:
     finally:
         await engine.dispose()
 
+
 @pytest_asyncio.fixture(scope="session")
 async def postgres_db(orm_mappers, event_loop) -> AsyncGenerator[Engine, None]:
     """Get a PostgreSQL database for testing."""
     engine = create_async_engine(
         get_postgres_uri().replace("postgresql://", "postgresql+asyncpg://"),
         echo=True,
-        pool_pre_ping=True,  
-        pool_recycle=3600, 
-        max_overflow=5,  
-        pool_size=5, 
-        isolation_level="REPEATABLE READ",  
-        connect_args={
-            "server_settings": {
-                "jit": "off",  
-                "statement_timeout": "60000",  
-                "lock_timeout": "30000",  
-            }
-        }
+        pool_pre_ping=True,
+        pool_recycle=3600,
+        max_overflow=5,
+        pool_size=5,
+        isolation_level="REPEATABLE READ",
     )
-    
+
     try:
         async with engine.begin() as conn:
             await conn.run_sync(metadata.create_all)
@@ -105,16 +104,14 @@ async def postgres_db(orm_mappers, event_loop) -> AsyncGenerator[Engine, None]:
         finally:
             await engine.dispose()
 
+
 @pytest_asyncio.fixture
 async def session_factory(in_memory_db: Engine):
     """Create a session factory for SQLite testing."""
     return async_sessionmaker(
-        bind=in_memory_db,
-        expire_on_commit=False,  
-        autoflush=True, 
-        future=True, 
-        class_=AsyncSession
+        bind=in_memory_db, expire_on_commit=False, autoflush=True, future=True, class_=AsyncSession
     )
+
 
 @pytest_asyncio.fixture
 async def postgres_session_factory(postgres_db: Engine):
@@ -124,8 +121,9 @@ async def postgres_session_factory(postgres_db: Engine):
         expire_on_commit=False,
         class_=AsyncSession,
         future=True,
-        join_transaction_mode="create_savepoint"
+        join_transaction_mode="create_savepoint",
     )
+
 
 @pytest_asyncio.fixture
 async def session(session_factory) -> AsyncGenerator[AsyncSession, None]:
@@ -136,6 +134,7 @@ async def session(session_factory) -> AsyncGenerator[AsyncSession, None]:
     finally:
         await session.close()
 
+
 @pytest_asyncio.fixture
 async def postgres_session(postgres_session_factory, event_loop) -> AsyncGenerator[AsyncSession, None]:
     """Get a PostgreSQL session for testing."""
@@ -145,41 +144,46 @@ async def postgres_session(postgres_session_factory, event_loop) -> AsyncGenerat
     finally:
         await session.close()
 
+
 @pytest_asyncio.fixture
 async def add_stock(postgres_session: AsyncSession) -> AsyncGenerator[Callable[[list[tuple]], None], None]:
     """Add stock batches to the database using the ORM.
-    
+
     Args:
         lines: List of tuples (reference, sku, quantity, eta)
     """
     batches_to_delete = []
-    
+
     async def add_stock(lines: list[tuple]) -> None:
         async with postgres_session.begin():
             for ref, sku, qty, eta in lines:
                 batch = Batch(ref, sku, qty, eta)
                 postgres_session.add(batch)
                 batches_to_delete.append(batch)
-    
+
     yield add_stock
-    
+
     try:
         async with postgres_session.begin():
             for batch in batches_to_delete:
                 await postgres_session.delete(batch)
     except Exception:
         import logging
+
         logging.exception("Error during test cleanup")
+
 
 def pytest_addoption(parser) -> None:
     """Add custom pytest command line options."""
     default_url = os.getenv("TEST_SERVER", "http://test")
     parser.addoption("--base-url", action="store", default=default_url, help="base url of the api server")
 
+
 @pytest.fixture
 def base_url(request) -> str:
     """Get the base URL for API testing."""
     return request.config.getoption("--base-url")
+
 
 @pytest.fixture
 def restart_api() -> None:

@@ -1,7 +1,7 @@
 from datetime import date
 
 import pytest
-from sqlalchemy import text, select
+from sqlalchemy import select, text
 from sqlalchemy.orm import selectinload
 
 from domain import model
@@ -18,7 +18,7 @@ async def test_orderline_mapper_can_load_lines(session) -> None:
             '("order3", "FLASH", 3)'
         )
     )
-    
+
     expected = [
         OrderLine("order1", "HEADPHONES", 1),
         OrderLine("order2", "MOUSE", 2),
@@ -26,7 +26,7 @@ async def test_orderline_mapper_can_load_lines(session) -> None:
     ]
     result = await session.execute(select(OrderLine))
     assert list(result.scalars().all()) == expected
-    
+
     await session.rollback()
 
 
@@ -39,7 +39,7 @@ async def test_orderline_mapper_can_save_lines(session) -> None:
     result = await session.execute(text('SELECT orderid, sku, qty FROM "order_lines"'))
     rows = list(result)
     assert rows == [("order1", "DECORATIVE-LEDS", 3)]
-    
+
     await session.rollback()
 
 
@@ -64,7 +64,7 @@ async def test_retrieving_batches(session) -> None:
 
     result = await session.execute(select(Batch))
     assert list(result.scalars().all()) == expected
-    
+
     await session.rollback()
 
 
@@ -78,7 +78,7 @@ async def test_saving_batches(session) -> None:
     rows = list(result)
 
     assert rows == [("batch1", "sku1", 100, None)]
-    
+
     await session.rollback()
 
 
@@ -94,7 +94,7 @@ async def test_saving_allocations(session) -> None:
     rows = list(result)
 
     assert rows == [(line.id, batch.id)]
-    
+
     await session.rollback()
 
 
@@ -133,6 +133,5 @@ async def test_retrieving_allocations(session) -> None:
     result = await session.execute(select(Batch).options(selectinload(model.Batch.allocations)))
     batch = result.scalar_one()
     assert batch.allocations == {OrderLine("order1", "sku1", 12)}
-    
-    await session.rollback()
 
+    await session.rollback()
