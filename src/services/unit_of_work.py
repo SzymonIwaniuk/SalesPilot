@@ -40,9 +40,10 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
         self.session = self.session_factory()
         self.batches = repository.SqlAlchemyRepository(self.session)
         await self.session.begin()
-        return self
+        return await super().__aenter__()
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(self, *args):
+        await super().__aexit__(*args)
         await self.session.close()
 
     async def commit(self):

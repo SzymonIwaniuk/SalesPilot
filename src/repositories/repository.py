@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from domain import model
-from domain.model import Batch
+from domain.model import Batch, Product
 
 
 class AbstractRepository(ABC):
@@ -24,21 +24,11 @@ class AbstractRepository(ABC):
     """
 
     @abstractmethod
-    async def add(self, batch: Batch) -> None:
+    async def add(self, product: Product) -> None:
         raise NotImplementedError
 
     @abstractmethod
-    async def get(self, reference: str) -> Batch:
-        raise NotImplementedError
-
-
-class AbstractProductRepository(ABC):
-    @abstractmethod
-    def add(self, product: model.Product) -> None:
-        raise NotImplementedError
-    
-    @abstractmethod
-    def get(self, sku: str) -> model.Product:
+    async def get(self, sku: str) -> Product:
         raise NotImplementedError
 
 
@@ -46,22 +36,16 @@ class SqlAlchemyRepository(AbstractRepository):
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 
-    async def add(self, batch: Batch) -> None:
-        self.session.add(batch)
+    async def add(self, product: Product) -> None:
+        self.session.add(product)
         await self.session.flush()
 
-    async def get(self, reference: str) -> Batch:
+    async def get(self, sku: str) -> Batch:
         result = await self.session.execute(
-            select(model.Batch).filter_by(reference=reference).options(selectinload(model.Batch.allocations))
+            select(model.Product).filter_by(sku=sku).options(selectinload(model.Product.allocations))
         )
         return result.scalar_one_or_none()
 
-    async def list(self) -> List[Batch]:
-        result = await self.session.execute(select(Batch).options(selectinload(model.Batch.allocations)))
-        return list(result.scalars().all())
-
-    async def update(self, batch: Batch) -> None:
-        await self.session.flush()
 
 
 class FakeRepository(AbstractRepository):
