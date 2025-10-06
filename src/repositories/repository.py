@@ -32,6 +32,15 @@ class AbstractRepository(ABC):
         raise NotImplementedError
 
 
+class AbstractProductRepository(ABC):
+    @abstractmethod
+    def add(self, product: model.Product) -> None:
+        raise NotImplementedError
+    
+    @abstractmethod
+    def get(self, sku: str) -> model.Product:
+        raise NotImplementedError
+
 
 class SqlAlchemyRepository(AbstractRepository):
     def __init__(self, session: AsyncSession) -> None:

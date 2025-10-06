@@ -46,11 +46,11 @@ async def allocate(orderid: str, sku: str, qty: int, uow: AbstractUnitOfWork) ->
     line = model.OrderLine(orderid, sku, qty)
 
     async with uow:
-        batches = await uow.batches.list()
-        if not is_valid_sku(line.sku, batches):
+        product = await uow.product.get(sku=line.sku)
+        if product is None:
             raise InvalidSku(f"Invalid sku {line.sku}")
 
-        batchref = services.allocate(line, batches)
+        batchref = product.allocate(line)
         await uow.commit()
 
     return batchref
@@ -80,11 +80,11 @@ async def add_batch(
     Raises:
         InvalidSku: If the batch data is invalid.
     """
-    if not sku or not reference or purchased_quantity <= 0:
-        raise OutOfStockInBatch("Invalid batch data")
 
     async with uow:
-        batch = model.Batch(reference, sku, purchased_quantity, eta)
-        await uow.batches.add(batch)
+        product = await uow.product.get(sku=sku)
+        if product is None:
+            product = model.Product(sku, batches=[])
+            await uow.product.add(product)
+        product.batches.append(model.Batch(reference, sku, purchased_quantity, eta))
         await uow.commit()
-        return None
