@@ -3,8 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import List, Optional
 
-from domain import model, services
-from services import handlers
+from domain import model
 from services.unit_of_work import AbstractUnitOfWork
 
 
@@ -46,7 +45,7 @@ async def allocate(orderid: str, sku: str, qty: int, uow: AbstractUnitOfWork) ->
     line = model.OrderLine(orderid, sku, qty)
 
     async with uow:
-        product = await uow.product.get(sku=line.sku)
+        product = await uow.products.get(sku=line.sku)
         if product is None:
             raise InvalidSku(f"Invalid sku {line.sku}")
 
@@ -82,9 +81,9 @@ async def add_batch(
     """
 
     async with uow:
-        product = await uow.product.get(sku=sku)
+        product = await uow.products.get(sku=sku)
         if product is None:
             product = model.Product(sku, batches=[])
-            await uow.product.add(product)
+            await uow.products.add(product)
         product.batches.append(model.Batch(reference, sku, purchased_quantity, eta))
         await uow.commit()

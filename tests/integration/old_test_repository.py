@@ -109,4 +109,3 @@ async def test_updating_a_batch(session: AsyncSession):
 
     rows = await session.execute(text("SELECT reference, sku, purchased_quantity," ' eta FROM "batches"'))
     assert list(rows) == [("batch1", "MOUSE", 3, None)]
-

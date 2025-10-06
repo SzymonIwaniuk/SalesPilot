@@ -1,9 +1,8 @@
-from sqlalchemy import (Column, Date, ForeignKey, Integer, MetaData, String,
-                        Table)
+from sqlalchemy import Column, Date, ForeignKey, Integer, MetaData, String, Table
 from sqlalchemy.orm import registry, relationship
 from sqlalchemy.sql import text
-from domain.model import Batch, OrderLine, Product
 
+from domain.model import Batch, OrderLine, Product
 
 mapper_registry = registry()
 metadata = MetaData()
@@ -40,8 +39,9 @@ products = Table(
     "products",
     metadata,
     Column("sku", String(255), primary_key=True),
-    Column("version_number", Integer, nullable=False, server_default=text("0"))
+    Column("version_number", Integer, nullable=False, server_default=text("0")),
 )
+
 
 def start_mappers():
     lines_mapper = mapper_registry.map_imperatively(OrderLine, order_lines)
@@ -60,6 +60,4 @@ def start_mappers():
         },
     )
 
-    mapper_registry.map_imperatively(
-        Product, products, properties={"batches": relationship(batches_mapper)}
-    )
+    mapper_registry.map_imperatively(Product, products, properties={"batches": relationship(batches_mapper)})

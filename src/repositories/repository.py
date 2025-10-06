@@ -1,12 +1,11 @@
 from abc import ABC, abstractmethod
-from typing import List
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from domain import model
-from domain.model import Batch, Product
+from domain.model import Product
 
 
 class AbstractRepository(ABC):
@@ -40,30 +39,21 @@ class SqlAlchemyRepository(AbstractRepository):
         self.session.add(product)
         await self.session.flush()
 
-    async def get(self, sku: str) -> Batch:
+    async def get(self, sku: str) -> Product:
         result = await self.session.execute(
-            select(model.Product).filter_by(sku=sku).options(selectinload(model.Product.allocations))
+            select(model.Product)
+            .filter_by(sku=sku)
+            .options(selectinload(model.Product.batches).selectinload(model.Batch.allocations))
         )
         return result.scalar_one_or_none()
 
 
-
 class FakeRepository(AbstractRepository):
-    def __init__(self, batches) -> None:
-        self._batches = set(batches)
+    def __init__(self, products) -> None:
+        self._products = set(products)
 
-    async def add(self, batch) -> None:
-        self._batches.add(batch)
+    async def add(self, product) -> None:
+        self._products.add(product)
 
-    async def get(self, reference) -> Batch:
-        try:
-            return next(b for b in self._batches if b.reference == reference)
-        except StopIteration:
-            raise KeyError(f"Batch with reference {reference} not found")
-
-    async def list(self) -> List[Batch]:
-        return list(self._batches)
-
-    @staticmethod
-    def for_batch(ref, sku, qty, eta=None):
-        return FakeRepository([model.Batch(reference=ref, sku=sku, purchased_quantity=qty, eta=eta)])
+    async def get(self, sku) -> Product:
+        return next((p for p in self._products if p.sku == sku), None)

@@ -9,12 +9,10 @@ import pytest
 import pytest_asyncio
 from fastapi import FastAPI
 from sqlalchemy.engine import Engine
-from sqlalchemy.ext.asyncio import (AsyncSession, async_sessionmaker,
-                                    create_async_engine)
-from sqlalchemy.orm import clear_mappers
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from config import get_postgres_uri
-from dbschema.orm import metadata, start_mappers
+from dbschema.orm import metadata
 from domain.model import Batch
 from entrypoints.fastapi_app import make_app
 

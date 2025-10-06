@@ -38,7 +38,7 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
 
     async def __aenter__(self):
         self.session = self.session_factory()
-        self.batches = repository.SqlAlchemyRepository(self.session)
+        self.products = repository.SqlAlchemyRepository(self.session)
         await self.session.begin()
         return await super().__aenter__()
 
@@ -48,14 +48,14 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
 
     async def commit(self):
         await self.session.commit()
-  
+
     async def rollback(self):
         await self.session.rollback()
 
 
 class FakeUnitOfWork(AbstractUnitOfWork):
     def __init__(self):
-        self.batches = repository.FakeRepository([])
+        self.products = repository.FakeRepository([])
         self.committed = False
 
     async def commit(self):

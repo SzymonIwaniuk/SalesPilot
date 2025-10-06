@@ -3,14 +3,17 @@ from datetime import date
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm.session import Session
 
 from domain import model
 from services import unit_of_work
 
 
 # Helper functions
-async def insert_batch(session: AsyncSession, ref: str, sku: str, qty: int, eta: date) -> None:
+async def insert_batch(session: AsyncSession, ref: str, sku: str, qty: int, eta: date, product_version=1) -> None:
+    await session.execute(
+        text("INSERT INTO products (sku, version_number)" "VALUES (:sku, :version)"),
+        dict(sku=sku, version=product_version),
+    )
     await session.execute(
         text("INSERT INTO batches (reference, sku, purchased_quantity, eta)" "VALUES (:ref, :sku, :qty, :eta)"),
         dict(ref=ref, sku=sku, qty=qty, eta=eta),
@@ -45,13 +48,12 @@ async def test_uow_can_retrieve_a_batch_and_allocate_to_it(session_factory) -> N
 
     uow = unit_of_work.SqlAlchemyUnitOfWork(session_factory)
     async with uow:
-        batch = await uow.batches.get(reference="batch1")
+        product = await uow.products.get(sku="HIPSTER-WORKBENCH")
         line = model.OrderLine(orderid="o1", sku="HIPSTER-WORKBENCH", qty=10)
-        batch.allocate(line)
+        product.allocate(line)
         await uow.commit()
 
     batchref = await get_allocated_batch_ref(session, "o1", "HIPSTER-WORKBENCH")
-    print(batchref)
     assert batchref == "batch1"
 
 
