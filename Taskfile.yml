@@ -20,3 +20,19 @@ tasks:
   isort:
     cmds:
       - isort .
+
+  docker:up:
+    cmds:
+      - docker-compose up --build -d
+
+  docker:down:
+    cmds:
+      - docker-compose down
+
+  docker:test:
+    cmds:
+      - docker-compose run --rm api python -m pytest -v
+
+  docker:clean:
+    cmds:
+      - docker-compose down -v

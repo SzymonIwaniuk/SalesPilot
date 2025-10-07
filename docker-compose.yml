@@ -11,20 +11,27 @@ services:
       POSTGRES_HOST_AUTH_METHOD: trust
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U allocation -d allocation"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
   api:
     build: 
       context: .
       dockerfile: Dockerfile
     ports:
-      - "80:8000"
+      - "9000:8000"
     environment:
       - DB_HOST=postgres
       - DB_PASSWORD=allocate
-      - PYTHONPATH=/src
+      - PYTHONPATH=/app/src
     volumes:
-      - .:/src
-    command: uvicorn src.run:app --host 0.0.0.0 --port 8000 --reload
+      - .:/app
+    depends_on:
+      postgres:
+        condition: service_healthy
 
 volumes:
   postgres_data:
