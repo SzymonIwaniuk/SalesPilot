@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: salespilot-secret
+  labels:
+    app: salespilot
+data:
+  DB_HOST: postgres
+  DB_PASSWORD: allocate
+  PYTHONPATH: /app/src

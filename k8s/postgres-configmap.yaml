@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgres-secret
+  labels:
+    app: postgres
+data:
+  POSTGRES_DB: allocation
+  POSTGRES_USER: allocation
+  POSTGRES_PASSWORD: allocate
+  POSTGRES_HOST_AUTH_METHOD: trust

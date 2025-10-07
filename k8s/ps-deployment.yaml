@@ -1,0 +1,43 @@
+# Deploy with https://www.digitalocean.com/community/tutorials/how-to-deploy-postgres-to-kubernetes-cluster
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres
+  template:
+    metadata:
+      labels:
+        app: postgres
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: postgres-secret
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - pg_isready -U allocation -d allocation
+            failureThreshold: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            initialDelaySeconds: 30
+          volumeMounts:
+            - mountPath: /var/lib/postgresql/data
+              name: postgresdata
+      volumes:
+        - name: postgresdata
+          persistentVolumeClaim:
+            claimName: postgres-volume-claim
+      restartPolicy: Always

@@ -1,0 +1,28 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: salespilot
+  name: salespilot
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: salespilot
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      labels:
+        app: salespilot
+    spec:
+      containers:
+        - envFrom:
+            - configMapRef:
+                name: salespilot-secret
+          image: szyyy/salespilot:latest
+          name: salespilot
+          ports:
+            - containerPort: 8000
+              protocol: TCP
+      restartPolicy: Always
