@@ -17,25 +17,15 @@ from domain.model import Batch
 from entrypoints.fastapi_app import make_app
 
 
-@pytest.fixture(scope="session")
-def event_loop() -> Generator[asyncio.AbstractEventLoop, None, None]:
-    policy = asyncio.get_event_loop_policy()
-    loop = policy.new_event_loop()
-    yield loop
-    loop.close()
-
-
 @pytest_asyncio.fixture(scope="session")
-async def test_app(event_loop) -> FastAPI:
-    asyncio.set_event_loop(event_loop)
+async def test_app() -> FastAPI:
     app = make_app()
     return app
 
 
 @pytest_asyncio.fixture
-async def async_test_client(test_app, event_loop) -> AsyncGenerator[httpx.AsyncClient, None]:
-    asyncio.set_event_loop(event_loop)
-
+async def async_test_client(test_app) -> AsyncGenerator[httpx.AsyncClient, None]:
+    asyncio.new_event_loop()
     client = httpx.AsyncClient(
         transport=httpx.ASGITransport(app=test_app),
         base_url="http://test",
