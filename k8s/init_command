@@ -6,8 +6,8 @@ minikube service list
 # restart pod deployment to pick new image
 kubectl rollout restart deployment/<pod>
 
-# check status of pods
-kubectl get pods -l io.kompose.service=postgres
+# check status of pod
+kubectl get pods -l app=salespilot
 
 # list all services
 kubectl get services
