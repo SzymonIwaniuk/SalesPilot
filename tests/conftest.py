@@ -1,10 +1,6 @@
-import asyncio
-import os
-import time
-from pathlib import Path
-from typing import AsyncGenerator, Callable, Generator
+from typing import AsyncGenerator, Callable
 
-import httpx
+from httpx import AsyncClient, ASGITransport
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
@@ -15,37 +11,35 @@ from config import get_postgres_uri
 from dbschema.orm import metadata
 from domain.model import Batch
 from entrypoints.fastapi_app import make_app
+from typing import Final
 
+TEST_BASE_URL: Final[str] = "http://test"
+IN_MEMORY_DB_URI: Final[str] = "sqlite+aiosqlite:///:memory:"
 
 @pytest_asyncio.fixture(scope="session")
 async def test_app() -> FastAPI:
     app = make_app()
     return app
 
-
 @pytest_asyncio.fixture
-async def async_test_client(test_app) -> AsyncGenerator[httpx.AsyncClient, None]:
-    asyncio.new_event_loop()
-    client = httpx.AsyncClient(
-        transport=httpx.ASGITransport(app=test_app),
-        base_url="http://test",
-        follow_redirects=True,
-    )
-    client.headers.update({"Content-Type": "application/json"})
-    yield client
-    await client.aclose()
+async def async_test_client(test_app) -> AsyncGenerator[AsyncClient, None]:
+    async with AsyncClient(
+        transport=ASGITransport(app=test_app),
+        base_url=TEST_BASE_URL,
+    ) as ac:
+        yield ac
+    await ac.aclose()
 
 
 @pytest_asyncio.fixture
 async def in_memory_db() -> Engine:
     engine = create_async_engine(
-        "sqlite+aiosqlite:///:memory:",
+        IN_MEMORY_DB_URI,
     )
     async with engine.begin() as conn:
         await conn.run_sync(metadata.create_all)
 
     yield engine
-
     await engine.dispose()
 
 
@@ -109,19 +103,3 @@ async def add_stock(postgres_session: AsyncSession) -> AsyncGenerator[Callable[[
     async with postgres_session.begin():
         for batch in batches_to_delete:
             await postgres_session.delete(batch)
-
-
-def pytest_addoption(parser) -> None:
-    default_url = os.getenv("TEST_SERVER", "http://test")
-    parser.addoption("--base-url", action="store", default=default_url, help="base url of the api server")
-
-
-@pytest.fixture
-def base_url(request) -> str:
-    return request.config.getoption("--base-url")
-
-
-@pytest.fixture
-def restart_api() -> None:
-    (Path(__file__).parent / "../src/entrypoints/fastapi_app.py").touch()
-    time.sleep(0.5)
