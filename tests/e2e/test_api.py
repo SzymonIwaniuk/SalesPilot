@@ -24,8 +24,7 @@ def random_orderid(name="") -> str:
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("postgres_db")
-@pytest.mark.usefixtures("restart_api")
+@pytest.mark.usefixtures("in_db_memory")
 async def post_to_add_batch(async_test_client, ref, sku, qty, eta) -> None:
     url = config.get_api_url()
 
@@ -42,7 +41,6 @@ async def post_to_add_batch(async_test_client, ref, sku, qty, eta) -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.usefixtures("restart_api")
 async def test_health_check(async_test_client: AsyncClient) -> None:
     response = await async_test_client.get("/health_check")
     assert response.status_code == HTTPStatus.OK
@@ -51,7 +49,6 @@ async def test_health_check(async_test_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("postgres_db")
-@pytest.mark.usefixtures("restart_api")
 async def test_api_returns_allocation(async_test_client: AsyncClient) -> None:
     sku, othersku = random_sku(), random_sku("other")
 
@@ -72,7 +69,6 @@ async def test_api_returns_allocation(async_test_client: AsyncClient) -> None:
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("postgres_db")
-@pytest.mark.usefixtures("restart_api")
 async def test_allocations_are_persisted(async_test_client: AsyncClient) -> None:
     sku = random_sku()
     batch1, batch2 = random_batchref(1), random_batchref(2)
@@ -97,7 +93,6 @@ async def test_allocations_are_persisted(async_test_client: AsyncClient) -> None
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("postgres_db")
-@pytest.mark.usefixtures("restart_api")
 async def test_400_message_for_out_of_stock(async_test_client: AsyncClient) -> None:
     sku, small_batch, large_order = random_sku(), random_batchref(), random_orderid()
 
@@ -112,7 +107,6 @@ async def test_400_message_for_out_of_stock(async_test_client: AsyncClient) -> N
 
 @pytest.mark.asyncio
 @pytest.mark.usefixtures("postgres_db")
-@pytest.mark.usefixtures("restart_api")
 async def test_400_message_for_invalid_sku(async_test_client: AsyncClient) -> None:
     unknown_sku, orderid = random_sku(), random_orderid()
     data = {"orderid": orderid, "sku": unknown_sku, "qty": 20}
