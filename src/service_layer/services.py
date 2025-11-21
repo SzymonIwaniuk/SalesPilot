@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import date
 from typing import List, Optional
 
-from domain import model
+from domain import model, exceptions
 from service_layer.unit_of_work import AbstractUnitOfWork
 
 
@@ -49,10 +49,13 @@ async def allocate(orderid: str, sku: str, qty: int, uow: AbstractUnitOfWork) ->
         if product is None:
             raise InvalidSku(f"Invalid sku {line.sku}")
 
-        batchref = product.allocate(line)
-        await uow.commit()
+        try:
+            batchref = product.allocate(line)
+            await uow.commit()
+            return batchref
 
-    return batchref
+        except exceptions.OutOfStock:
+            email.send("stock@made.com", f"Out of stock for {line.sku}")
 
 
 async def add_batch(

@@ -28,30 +28,31 @@ def make_app() -> FastAPI:
 
     @app.post("/allocate", status_code=HTTPStatus.ACCEPTED)
     async def allocate_endpoint(
-        lines: OrderLine,
+        line: OrderLine,
     ) -> dict[str, str]:
         try:
-            async with unit_of_work.SqlAlchemyUnitOfWork() as uow:
-                batchref = await services.allocate(
-                    **lines.model_dump(include={"sku", "qty", "orderid"}),
-                    uow=uow,
-                )
-                await uow.commit()
-            return {"status": "Ok", "batchref": batchref}
+            uow = unit_of_work.SqlAlchemyUnitOfWork()
+            batchref = await services.allocate(
+                **line.model_dump(include={"sku", "qty", "orderid"}),
+                uow=uow,
+            )
         except (exceptions.OutOfStock, services.InvalidSku) as e:
             raise HTTPException(HTTPStatus.BAD_REQUEST, detail=str(e))
+
+        return {"status": "Ok", "batchref": batchref}
+
 
     @app.post("/add_batch", status_code=HTTPStatus.CREATED)
     async def add_batch(batch: Batch) -> dict[str, str]:
         try:
-            async with unit_of_work.SqlAlchemyUnitOfWork() as uow:
-                await services.add_batch(
+            uow = unit_of_work.SqlAlchemyUnitOfWork()
+            await services.add_batch(
                     **batch.model_dump(include={"reference", "sku", "purchased_quantity", "eta"}),
                     uow=uow,
-                )
-                await uow.commit()
-            return {"status": "Ok"}
+            )
         except services.OutOfStockInBatch as e:
             raise HTTPException(HTTPStatus.BAD_REQUEST, detail=str(e))
+
+        return {"status": "Ok"}
 
     return app
