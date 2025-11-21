@@ -22,7 +22,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "9000:8000"
+      - "10300:8000"
     environment:
       - DB_HOST=postgres
       - DB_PASSWORD=allocate

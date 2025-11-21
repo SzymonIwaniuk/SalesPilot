@@ -1,6 +1,6 @@
 from typing import List
 
-from domain.events import OutOfStock
+from domain.exceptions import OutOfStock
 from domain.model import Batch, OrderLine
 
 

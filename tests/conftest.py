@@ -1,9 +1,8 @@
-from typing import AsyncGenerator, Callable
+from typing import AsyncGenerator, Callable, Final
 
-from httpx import AsyncClient, ASGITransport
-import pytest
 import pytest_asyncio
 from fastapi import FastAPI
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
@@ -11,15 +10,16 @@ from config import get_postgres_uri
 from dbschema.orm import metadata
 from domain.model import Batch
 from entrypoints.fastapi_app import make_app
-from typing import Final
 
 TEST_BASE_URL: Final[str] = "http://test"
 IN_MEMORY_DB_URI: Final[str] = "sqlite+aiosqlite:///:memory:"
+
 
 @pytest_asyncio.fixture(scope="session")
 async def test_app() -> FastAPI:
     app = make_app()
     return app
+
 
 @pytest_asyncio.fixture
 async def async_test_client(test_app) -> AsyncGenerator[AsyncClient, None]:

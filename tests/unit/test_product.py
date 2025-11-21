@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from domain.events import OutOfStock
+from domain.exceptions import OutOfStock
 from domain.model import Batch, OrderLine, Product
 
 today = date.today()

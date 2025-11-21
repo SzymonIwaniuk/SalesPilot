@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from datetime import date
 from typing import List, NewType, Optional, Set
 
-from domain.events import OutOfStock
+from domain.exceptions import OutOfStock
 
 # type hints
 Quantity = NewType("Quantity", int)

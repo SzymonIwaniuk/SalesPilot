@@ -4,7 +4,7 @@ from datetime import date
 from typing import List, Optional
 
 from domain import model
-from services.unit_of_work import AbstractUnitOfWork
+from service_layer.unit_of_work import AbstractUnitOfWork
 
 
 class InvalidSku(Exception):

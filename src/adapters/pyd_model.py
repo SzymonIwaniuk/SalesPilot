@@ -11,7 +11,7 @@ from domain.model import OrderId, Quantity, Reference, Sku
 
 
 class OrderLine(BaseModel, model.OrderLine):
-    """Pydantic adapter for domain OrderLine model."""
+    """Pydantic adapter for , OrderLine model."""
 
     sku: Sku
     qty: Quantity
@@ -53,7 +53,7 @@ class OrderLineWithAllocatedIn(model.OrderLine):
 
 
 class Batch(BaseModel, model.Batch):
-    """Pydantic adapter for domain Batch model."""
+    """Pydantic adapter for , Batch model."""
 
     id: Optional[UUID] = Field(default=None, exclude=True)
     reference: Reference
