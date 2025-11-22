@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Date, ForeignKey, Integer, MetaData, String, Table
+from sqlalchemy import Column, Date, ForeignKey, Integer, MetaData, String, Table, event
 from sqlalchemy.orm import registry, relationship
 from sqlalchemy.sql import text
 
@@ -61,3 +61,9 @@ def start_mappers():
     )
 
     mapper_registry.map_imperatively(Product, products, properties={"batches": relationship(batches_mapper)})
+
+
+# tells SQLALchemy whenever a Product object is loaded from the db, call this function and init product.events
+@event.listens_for(Product, "load")
+def receive_load(product, _):
+    product.events = []

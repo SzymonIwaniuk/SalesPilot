@@ -2,10 +2,9 @@ from __future__ import annotations
 
 from datetime import date
 from typing import List, Optional
-from domain import model
-from service_layer import unit_of_work, messagebus
-from domain import events
 
+from domain import events, model
+from service_layer import messagebus, unit_of_work
 
 
 class InvalidSku(Exception):
@@ -54,8 +53,6 @@ async def allocate(orderid: str, sku: str, qty: int, uow: unit_of_work.AbstractU
         await uow.commit()
 
     return batchref
-
-
 
 
 async def add_batch(

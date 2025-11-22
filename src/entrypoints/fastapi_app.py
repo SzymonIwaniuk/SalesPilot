@@ -41,14 +41,13 @@ def make_app() -> FastAPI:
 
         return {"status": "Ok", "batchref": batchref}
 
-
     @app.post("/add_batch", status_code=HTTPStatus.CREATED)
     async def add_batch(batch: Batch) -> dict[str, str]:
         try:
             uow = unit_of_work.SqlAlchemyUnitOfWork()
             await services.add_batch(
-                    **batch.model_dump(include={"reference", "sku", "purchased_quantity", "eta"}),
-                    uow=uow,
+                **batch.model_dump(include={"reference", "sku", "purchased_quantity", "eta"}),
+                uow=uow,
             )
         except services.OutOfStockInBatch as e:
             raise HTTPException(HTTPStatus.BAD_REQUEST, detail=str(e))

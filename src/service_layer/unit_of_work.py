@@ -4,6 +4,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 import config
 from repositories import repository
+from service_layer import messagebus
 
 DEFAULT_ENGINE = create_async_engine(
     config.get_postgres_uri(),
@@ -15,7 +16,7 @@ DEFAULT_SESSION_FACTORY = async_sessionmaker(
 
 
 class AbstractUnitOfWork(abc.ABC):
-    batches: repository.AbstractRepository
+    products: repository.AbstractRepository
 
     async def __aenter__(self):
         return self
@@ -23,8 +24,19 @@ class AbstractUnitOfWork(abc.ABC):
     async def __aexit__(self, *args):
         await self.rollback()
 
-    @abc.abstractmethod
     async def commit(self):
+        await self._commit()
+        self.publish_events()
+
+    def publish_events(self):
+        for product in self.products.seen:
+            print(vars(product))
+            while product.events:
+                event = product.events.pop(0)
+                messagebus.handle(event)
+
+    @abc.abstractmethod
+    async def _commit(self):
         raise NotImplementedError
 
     @abc.abstractmethod
@@ -46,7 +58,7 @@ class SqlAlchemyUnitOfWork(AbstractUnitOfWork):
         await super().__aexit__(*args)
         await self.session.close()
 
-    async def commit(self):
+    async def _commit(self):
         await self.session.commit()
 
     async def rollback(self):
@@ -58,7 +70,7 @@ class FakeUnitOfWork(AbstractUnitOfWork):
         self.products = repository.FakeRepository([])
         self.committed = False
 
-    async def commit(self):
+    async def _commit(self):
         self.committed = True
 
     async def rollback(self):
