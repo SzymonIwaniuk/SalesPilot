@@ -2,7 +2,7 @@ from datetime import date, timedelta
 
 import pytest
 
-from domain import events
+from domain import exceptions
 from domain.model import Batch, OrderLine, Product
 
 today = date.today()
@@ -52,9 +52,9 @@ def test_raises_out_of_stock_exception_if_cannot_allocate() -> None:
     product = Product(sku="SMALL-AMPLIFIER", batches=[batch])
     product.allocate(OrderLine("order1", "SMALL-AMPLIFIER", 10))
 
-    allocation = product.allocate(OrderLine("order1", "SMALL-AMPLIFIER", 1))
-    assert product.events[-1] == events.OutOfStock(sku = "SMALL-AMPLIFIER")
-    assert allocation is None
+    with pytest.raises(exceptions.OutOfStock, match="SMALL-AMPLIFIER"):
+        product.allocate(OrderLine("order2", "SMALL-AMPLIFIER", 1))
+
 
 
 def test_increments_version_number() -> None:

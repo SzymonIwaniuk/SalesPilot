@@ -5,7 +5,6 @@ from datetime import date
 from typing import List, NewType, Optional, Set
 
 from domain.exceptions import OutOfStock
-from domain import events
 
 # type hints
 Quantity = NewType("Quantity", int)
@@ -80,14 +79,12 @@ class Product:
         self.sku = sku
         self.batches = batches
         self.version_number = version_number
-        self.events = []
 
-    def allocate(self, line: OrderLine) -> Optional[str]:
+    def allocate(self, line: OrderLine) -> str:
         try:
             batch = next(b for b in sorted(self.batches) if b.can_allocate(line))
             batch.allocate(line)
             self.version_number += 1
             return batch.reference
         except StopIteration:
-            self.events.append(events.OutOfStock(line.sku))
-            return None
+            raise OutOfStock(f"Out of stock for sku {line.sku}")

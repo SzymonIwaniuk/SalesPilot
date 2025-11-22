@@ -2,9 +2,10 @@ from __future__ import annotations
 
 from datetime import date
 from typing import List, Optional
+from domain import model
+from service_layer import unit_of_work, messagebus
+from domain import events
 
-from domain import model, exceptions
-from service_layer.unit_of_work import AbstractUnitOfWork
 
 
 class InvalidSku(Exception):
@@ -24,7 +25,7 @@ def is_valid_sku(sku: str, batches: List[model.Batch]) -> bool:
     return sku in {b.sku for b in batches}
 
 
-async def allocate(orderid: str, sku: str, qty: int, uow: AbstractUnitOfWork) -> str:
+async def allocate(orderid: str, sku: str, qty: int, uow: unit_of_work.AbstractUnitOfWork) -> str:
     """
     Create from primitives order line and allocate it to a batch.
 
@@ -49,13 +50,12 @@ async def allocate(orderid: str, sku: str, qty: int, uow: AbstractUnitOfWork) ->
         if product is None:
             raise InvalidSku(f"Invalid sku {line.sku}")
 
-        try:
-            batchref = product.allocate(line)
-            await uow.commit()
-            return batchref
+        batchref = product.allocate(line)
+        await uow.commit()
 
-        except exceptions.OutOfStock:
-            email.send("stock@made.com", f"Out of stock for {line.sku}")
+    return batchref
+
+
 
 
 async def add_batch(
@@ -63,7 +63,7 @@ async def add_batch(
     sku: str,
     purchased_quantity: int,
     eta: Optional[date],
-    uow: AbstractUnitOfWork,
+    uow: unit_of_work.AbstractUnitOfWork,
 ) -> None:
     """
     Creates a new `Batch` instance from primitive values,
